@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Monty Hall Stats + 3 Charts</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --text:#e6edf7;
+      --muted:#9fb0c7;
+      --border: rgba(255,255,255,.14);
+      --pick:#ffd166;
+
+      /* chart colors */
+      --c-all:#6ee7ff;
+      --c-stay:#ffd166;
+      --c-switch:#34d399;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      min-height:100svh;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:14px;
+      background: radial-gradient(1200px 600px at 50% -10%, #1b2a4b, var(--bg));
+      color:var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Segoe UI", sans-serif;
+    }
+
+    header{
+      width:min(980px, 94vw);
+      margin-top:14px;
+      padding:14px 16px;
+      border:1px solid var(--border);
+      border-radius:16px;
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .centerStat{
+      flex:1;
+      text-align:center;
+      font-weight:900;
+      letter-spacing:.4px;
+      font-size: clamp(14px, 2.0vw, 18px);
+      line-height:1.4;
+    }
+    .centerStat .row{
+      display:block;
+    }
+    .centerStat .muted{
+      color:var(--muted);
+      font-weight:800;
+      font-size:12px;
+      letter-spacing:0;
+      margin-top:6px;
+    }
+
+    .side{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    button, input{
+      appearance:none;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      font-weight:900;
+    }
+    button{
+      cursor:pointer;
+      transition: transform .06s ease, background .2s ease, border-color .2s ease;
+    }
+    button:hover{ background: rgba(255,255,255,.10); }
+    button:active{ transform: translateY(1px); }
+    button:disabled{ opacity:.55; cursor:not-allowed; }
+    input[type="number"]{ width: 110px; }
+    label{ color:var(--muted); font-weight:900; font-size:12px; }
+
+    main{
+      width:min(980px, 94vw);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:12px;
+    }
+
+    .hint{
+      width:100%;
+      padding:12px 14px;
+      border:1px solid var(--border);
+      border-radius:16px;
+      background: rgba(255,255,255,.04);
+      line-height:1.6;
+    }
+    .hint b{ color: var(--text); }
+    .step{
+      margin-top:6px;
+      color: var(--muted);
+      font-weight:800;
+    }
+    .step.active{
+      color: var(--pick);
+      font-weight:950;
+    }
+
+    .board{
+      width:100%;
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap:14px;
+    }
+    .card{
+      user-select:none;
+      height: clamp(130px, 22vw, 190px);
+      border-radius:18px;
+      border:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      transition: transform .08s ease, border-color .2s ease, box-shadow .2s ease;
+      box-shadow: 0 12px 22px rgba(0,0,0,.22);
+      overflow:hidden;
+      position:relative;
+    }
+    .card:hover{ transform: translateY(-2px); border-color: rgba(255,255,255,.24); }
+    .card:active{ transform: translateY(0px); }
+
+    .cardInner{
+      width:100%;
+      height:100%;
+      padding:14px;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+    }
+    .labelTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      font-weight:950;
+      letter-spacing:.5px;
+      color: rgba(230,237,247,.9);
+    }
+    .badge{
+      font-size:12px;
+      padding:6px 8px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      color: var(--muted);
+      background: rgba(0,0,0,.12);
+      font-weight:950;
+    }
+    .face{
+      flex:1;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size: clamp(18px, 3vw, 26px);
+      font-weight:950;
+      letter-spacing:.6px;
+      color: rgba(230,237,247,.92);
+    }
+
+    .picked{
+      outline: 3px solid rgba(255, 209, 102, .55);
+      box-shadow: 0 16px 30px rgba(255, 209, 102, .12);
+    }
+    .picked .badge{
+      border-color: rgba(255, 209, 102, .45);
+      color: rgba(255, 209, 102, .95);
+    }
+
+    .revealed{
+      background: linear-gradient(180deg, rgba(148,163,184,.18), rgba(255,255,255,.02));
+      cursor:default;
+    }
+    .locked{
+      cursor:default;
+      opacity:.92;
+    }
+
+    .graphGrid{
+      width:100%;
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:12px;
+      margin-bottom:18px;
+    }
+
+    .graphWrap{
+      width:100%;
+      border:1px solid var(--border);
+      border-radius:16px;
+      background: rgba(255,255,255,.03);
+      padding:12px;
+    }
+    .graphTitle{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom:10px;
+      color:var(--muted);
+      font-weight:950;
+      font-size:13px;
+    }
+    .legend{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:flex-end;
+      font-weight:950;
+    }
+    .dot{
+      width:10px; height:10px; border-radius:999px;
+      display:inline-block; margin-right:6px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.15);
+    }
+    canvas{
+      width:100%;
+      height:240px;
+      display:block;
+      border-radius:12px;
+      background: rgba(0,0,0,.10);
+      border:1px solid rgba(255,255,255,.08);
+    }
+
+    @media (max-width: 640px){
+      .board{ grid-template-columns: 1fr; }
+      .card{ height: 150px; }
+      header{ justify-content:center; }
+      .side{ justify-content:center; width:100%; }
+      .centerStat{ order:-1; width:100%; }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="side">
+      <button id="btnReset">リセット</button>
+
+      <div style="display:flex; gap:8px; align-items:center;">
+        <label for="autoCount">自動回数</label>
+        <input id="autoCount" type="number" min="1" max="20000" step="1" value="10">
+        <button id="btnAuto">自動実行</button>
+      </div>
+    </div>
+
+    <!-- ここに「全体・stay・switch の勝率」をまとめて表示 -->
+    <div class="centerStat" id="statBox">
+      <span class="row" id="statAll">全体 勝率：0.0%（0 / 0）</span>
+      <span class="row" id="statStay">stay 勝率：—（0 / 0）</span>
+      <span class="row" id="statSwitch">switch 勝率：—（0 / 0）</span>
+    </div>
+
+    <div class="side">
+      <span style="border:1px solid var(--border); border-radius:999px; padding:8px 10px; background: rgba(255,255,255,.03); font-weight:950;" id="modePill">
+        手動プレイ
+      </span>
+    </div>
+  </header>
+
+  <main>
+    <!-- 手順ボックス（3行のみ。現在の手順だけ色が変わる） -->
+    <div class="hint">
+      <b>手順</b>
+      <div id="step1" class="step active">① カードを1枚選んでください（まだ裏返しません）</div>
+      <div id="step2" class="step">② 司会者が必ず「ハズレ」を1枚だけ公開します</div>
+      <div id="step3" class="step">③ 残った2枚から最終選択してください（変更も可能です）</div>
+    </div>
+
+    <div class="board" id="board"></div>
+
+    <!-- 3つの別グラフ -->
+    <div class="graphGrid">
+      <div class="graphWrap">
+        <div class="graphTitle">
+          <div>全体 勝率グラフ（横軸：試行回数）</div>
+          <div class="legend"><span><span class="dot" id="dotAll"></span>全体</span></div>
+        </div>
+        <canvas id="chartAll"></canvas>
+      </div>
+
+      <div class="graphWrap">
+        <div class="graphTitle">
+          <div>stay 勝率グラフ（横軸：stay を選んだ回数）</div>
+          <div class="legend"><span><span class="dot" id="dotStay"></span>stay</span></div>
+        </div>
+        <canvas id="chartStay"></canvas>
+      </div>
+
+      <div class="graphWrap">
+        <div class="graphTitle">
+          <div>switch 勝率グラフ（横軸：switch を選んだ回数）</div>
+          <div class="legend"><span><span class="dot" id="dotSwitch"></span>switch</span></div>
+        </div>
+        <canvas id="chartSwitch"></canvas>
+      </div>
+    </div>
+  </main>
+
+<script>
+(() => {
+  const board = document.getElementById("board");
+
+  // header stats
+  const statAllEl = document.getElementById("statAll");
+  const statStayEl = document.getElementById("statStay");
+  const statSwitchEl = document.getElementById("statSwitch");
+
+  const btnReset = document.getElementById("btnReset");
+  const btnAuto = document.getElementById("btnAuto");
+  const autoCount = document.getElementById("autoCount");
+  const modePill = document.getElementById("modePill");
+
+  // steps
+  const step1 = document.getElementById("step1");
+  const step2 = document.getElementById("step2");
+  const step3 = document.getElementById("step3");
+
+  // charts
+  const canvasAll = document.getElementById("chartAll");
+  const canvasStay = document.getElementById("chartStay");
+  const canvasSwitch = document.getElementById("chartSwitch");
+
+  const ctxAll = canvasAll.getContext("2d");
+  const ctxStay = canvasStay.getContext("2d");
+  const ctxSwitch = canvasSwitch.getContext("2d");
+
+  const dotAll = document.getElementById("dotAll");
+  const dotStay = document.getElementById("dotStay");
+  const dotSwitch = document.getElementById("dotSwitch");
+
+  const COLOR_ALL = getComputedStyle(document.documentElement).getPropertyValue("--c-all").trim();
+  const COLOR_STAY = getComputedStyle(document.documentElement).getPropertyValue("--c-stay").trim();
+  const COLOR_SWITCH = getComputedStyle(document.documentElement).getPropertyValue("--c-switch").trim();
+  dotAll.style.background = COLOR_ALL;
+  dotStay.style.background = COLOR_STAY;
+  dotSwitch.style.background = COLOR_SWITCH;
+
+  // ---- stats ----
+  let total = 0, win = 0;
+  let stayTotal = 0, stayWin = 0;
+  let switchTotal = 0, switchWin = 0;
+
+  // ---- histories (y-values only; x is implicit as index+1) ----
+  // 全体：試行回数ごとに1点
+  const histAll = [];
+
+  // stay：stay を選んだときだけ1点増える（横軸=stay回数）
+  const histStay = [];
+
+  // switch：switch を選んだときだけ1点増える（横軸=switch回数）
+  const histSwitch = [];
+
+  // ---- game state ----
+  // phase: "pick1" -> "host" -> "pick2" -> "result"
+  let prizeIndex = -1;
+  let firstPick = -1;
+  let hostReveal = -1;
+  let secondPick = -1;
+  let phase = "pick1";
+
+  const cards = [0,1,2].map(i => ({
+    index: i,
+    picked: false,
+    revealed: false,
+    text: ""   // 裏の中央文字を出さない
+  }));
+
+  function rndInt(n){ return Math.floor(Math.random() * n); }
+  function sleep(ms){ return new Promise(res => setTimeout(res, ms)); }
+
+  function updateSteps(){
+    step1.classList.remove("active");
+    step2.classList.remove("active");
+    step3.classList.remove("active");
+
+    if (phase === "pick1") step1.classList.add("active");
+    if (phase === "host")  step2.classList.add("active");
+    if (phase === "pick2") step3.classList.add("active");
+    if (phase === "result") step3.classList.add("active");
+  }
+
+  function fmtRate(w, t){
+    if (t === 0) return "—";
+    return ((w / t) * 100).toFixed(1) + "%";
+  }
+
+  function updateHeaderStats(){
+    statAllEl.textContent = `全体 勝率：${fmtRate(win, total)}（${win} / ${total}）`;
+    statStayEl.textContent = `stay 勝率：${fmtRate(stayWin, stayTotal)}（${stayWin} / ${stayTotal}）`;
+    statSwitchEl.textContent = `switch 勝率：${fmtRate(switchWin, switchTotal)}（${switchWin} / ${switchTotal}）`;
+  }
+
+  function newGame(){
+    prizeIndex = rndInt(3);
+    firstPick = -1;
+    hostReveal = -1;
+    secondPick = -1;
+    phase = "pick1";
+
+    cards.forEach(c => {
+      c.picked = false;
+      c.revealed = false;
+      c.text = "";
+    });
+
+    render();
+  }
+
+  // モンティ：プレイヤーが選んでいないカードから必ずハズレを公開
+  function hostAction(){
+    const candidates = [0,1,2].filter(i => i !== firstPick);
+    const goats = candidates.filter(i => i !== prizeIndex);
+    hostReveal = goats[rndInt(goats.length)];
+
+    cards[hostReveal].revealed = true;
+    cards[hostReveal].text = "ハズレ";
+
+    phase = "pick2";
+    render();
+  }
+
+  function finalizePick(finalIndex){
+    secondPick = finalIndex;
+    phase = "result";
+
+    // 全公開
+    [0,1,2].forEach(i => {
+      cards[i].revealed = true;
+      cards[i].text = (i === prizeIndex) ? "当たり" : "ハズレ";
+    });
+
+    const isWin = (secondPick === prizeIndex);
+
+    // stats update
+    total += 1;
+    if (isWin) win += 1;
+
+    const switched = (secondPick !== firstPick);
+    if (switched){
+      switchTotal += 1;
+      if (isWin) switchWin += 1;
+    } else {
+      stayTotal += 1;
+      if (isWin) stayWin += 1;
+    }
+
+    // histories update:
+    // 全体は毎回1点
+    histAll.push((win / total) * 100);
+
+    // stay/switch は「選んだときだけ」1点（横軸が回数に一致）
+    if (!switched){
+      histStay.push((stayWin / stayTotal) * 100);
+    } else {
+      histSwitch.push((switchWin / switchTotal) * 100);
+    }
+
+    render();
+
+    updateHeaderStats();
+    drawAllCharts();
+
+    setTimeout(() => newGame(), 520);
+  }
+
+  function onCardClick(i){
+    if (phase === "pick1"){
+      firstPick = i;
+      cards.forEach(c => c.picked = (c.index === i));
+
+      phase = "host";
+      render(); // step2 が光る
+      setTimeout(() => hostAction(), 240);
+      return;
+    }
+
+    if (phase === "pick2"){
+      if (i === hostReveal) return; // 公開済みは選べない
+      cards.forEach(c => c.picked = (c.index === i));
+      finalizePick(i);
+      return;
+    }
+  }
+
+  function render(){
+    updateSteps();
+    updateHeaderStats();
+
+    board.innerHTML = "";
+    cards.forEach(c => {
+      const el = document.createElement("div");
+      el.className = "card";
+
+      if (c.picked) el.classList.add("picked");
+      if (c.revealed) el.classList.add("revealed");
+
+      const locked =
+        (phase === "host" || phase === "result") ||
+        (phase === "pick2" && c.index === hostReveal);
+
+      if (locked) el.classList.add("locked");
+
+      el.addEventListener("click", () => onCardClick(c.index));
+
+      const inner = document.createElement("div");
+      inner.className = "cardInner";
+
+      const top = document.createElement("div");
+      top.className = "labelTop";
+      top.innerHTML = `<span>CARD ${c.index + 1}</span>`;
+
+      const badge = document.createElement("span");
+      badge.className = "badge";
+
+      if (phase === "pick1"){
+        badge.textContent = c.picked ? "選択中" : "未選択";
+      } else if (phase === "host"){
+        badge.textContent = (c.index === firstPick) ? "あなたの選択" : "待機";
+      } else if (phase === "pick2"){
+        if (c.index === hostReveal) badge.textContent = "公開済み";
+        else if (c.index === firstPick) badge.textContent = "そのまま/変更";
+        else badge.textContent = "変更先";
+        if (c.picked) badge.textContent = "最終選択";
+      } else { // result
+        badge.textContent = (c.index === secondPick) ? "最終選択" : "結果";
+      }
+
+      top.appendChild(badge);
+
+      const face = document.createElement("div");
+      face.className = "face";
+      face.textContent = c.revealed ? c.text : "";
+
+      inner.appendChild(top);
+      inner.appendChild(face);
+      el.appendChild(inner);
+      board.appendChild(el);
+    });
+  }
+
+  // ---------- Chart helpers ----------
+  function resizeCanvas(canvas, ctx){
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const w = Math.max(320, Math.floor(rect.width));
+    const h = Math.max(200, Math.floor(rect.height));
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return {W: w, H: h};
+  }
+
+  function drawSingleChart(canvas, ctx, series, color, xLabel){
+    const {W, H} = resizeCanvas(canvas, ctx);
+
+    const padL = 44, padR = 14, padT = 14, padB = 28;
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+
+    ctx.clearRect(0,0,W,H);
+
+    // grid + y labels
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,0.10)";
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.font = "12px ui-sans-serif, system-ui, -apple-system, 'Noto Sans JP'";
+
+    for (let y = 0; y <= 100; y += 20){
+      const yy = padT + plotH * (1 - y/100);
+      ctx.beginPath();
+      ctx.moveTo(padL, yy);
+      ctx.lineTo(padL + plotW, yy);
+      ctx.stroke();
+      ctx.fillText(String(y), 10, yy + 4);
+    }
+
+    // axis
+    ctx.strokeStyle = "rgba(255,255,255,0.20)";
+    ctx.beginPath();
+    ctx.moveTo(padL, padT);
+    ctx.lineTo(padL, padT + plotH);
+    ctx.lineTo(padL + plotW, padT + plotH);
+    ctx.stroke();
+
+    // x labels
+    const n = series.length;
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.fillText(xLabel, padL + plotW - Math.min(140, xLabel.length*7), padT + plotH + 22);
+    if (n > 0){
+      ctx.fillText("1", padL, padT + plotH + 22);
+      ctx.fillText(String(n), padL + plotW - 12 - String(n).length*7, padT + plotH + 22);
+    }
+
+    if (n < 2) return;
+
+    function xOf(i){
+      if (n <= 1) return padL;
+      return padL + (i/(n-1)) * plotW;
+    }
+    function yOf(rate){
+      return padT + plotH * (1 - (rate/100));
+    }
+
+    // downsample to max 1200 pts
+    const maxPts = 1200;
+    const step = (n <= maxPts) ? 1 : Math.ceil(n / maxPts);
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+
+    let started = false;
+    for (let i = 0; i < n; i += step){
+      const v = series[i];
+      if (!Number.isFinite(v)) continue;
+      const xx = xOf(i);
+      const yy = yOf(Math.max(0, Math.min(100, v)));
+      if (!started){ ctx.moveTo(xx, yy); started = true; }
+      else ctx.lineTo(xx, yy);
+    }
+    ctx.stroke();
+  }
+
+  function drawAllCharts(){
+    drawSingleChart(canvasAll, ctxAll, histAll, COLOR_ALL, "回");
+    drawSingleChart(canvasStay, ctxStay, histStay, COLOR_STAY, "回");
+    drawSingleChart(canvasSwitch, ctxSwitch, histSwitch, COLOR_SWITCH, "回");
+  }
+
+  window.addEventListener("resize", () => drawAllCharts());
+
+  // ---------- Auto ----------
+  function sanitizeAutoN(){
+    const n = Number(autoCount.value);
+    if (!Number.isFinite(n)) return 10;
+    return Math.max(1, Math.min(20000, Math.floor(n)));
+  }
+
+  async function autoPlay(n){
+    modePill.textContent = "自動プレイ中";
+    btnAuto.disabled = true;
+    btnReset.disabled = true;
+    autoCount.disabled = true;
+
+    for (let t = 0; t < n; t++){
+      newGame();
+      await sleep(25);
+
+      // pick1
+      const pick = rndInt(3);
+      onCardClick(pick);
+
+      // hostActionは240ms後に実行される
+      await sleep(320);
+
+      // pick2: 50%で switch
+      const doSwitch = Math.random() < 0.5;
+      let finalPick = firstPick;
+      if (doSwitch){
+        finalPick = [0,1,2].find(i => i !== firstPick && i !== hostReveal);
+      }
+      onCardClick(finalPick);
+
+      await sleep(560);
+    }
+
+    modePill.textContent = "手動プレイ";
+    btnAuto.disabled = false;
+    btnReset.disabled = false;
+    autoCount.disabled = false;
+  }
+
+  btnAuto.addEventListener("click", () => {
+    autoCount.value = String(sanitizeAutoN());
+    autoPlay(sanitizeAutoN());
+  });
+
+  btnReset.addEventListener("click", () => {
+    total = 0; win = 0;
+    stayTotal = 0; stayWin = 0;
+    switchTotal = 0; switchWin = 0;
+
+    histAll.length = 0;
+    histStay.length = 0;
+    histSwitch.length = 0;
+
+    newGame();
+    updateHeaderStats();
+    drawAllCharts();
+  });
+
+  // init
+  newGame();
+  updateHeaderStats();
+  drawAllCharts();
+})();
+</script>
+</body>
+</html>
