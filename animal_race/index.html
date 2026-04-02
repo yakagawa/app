@@ -126,6 +126,7 @@ let pauseStartTime=null;
 let totalPauseMs=0;
 let paused=false;
 let elapsed=0;
+let prevFrameTime=0;
 let confettis=[];
 let animFrame=null;
 const CONFETTI_COLORS=['#f44','#fc0','#0cf','#0f6','#c0f'];
@@ -272,7 +273,6 @@ function startRace(){
     a.baseY = INFO_H + i*LANE_H + 30;
     a.y = a.baseY;
     a.finishTime = null;
-    a.lastMoveSec = 0;
     a.jumpPhase = 0;
     a.isJumping = false;
     a.confettiDone = false;
@@ -296,6 +296,7 @@ function startRace(){
       countdownTimer=null;
       mode='race';
       raceStartTime=performance.now();
+      prevFrameTime=performance.now();
       sndStart.play();
       bgm.play().catch(()=>{});
     }
@@ -414,10 +415,15 @@ function loop(){
   drawBg();
   drawMarkers();
 
-  // 経過時間計算
+  // 経過時間計算（表示用は秒、deltaTimeで連続移動）
+  const nowMs = performance.now();
+  let deltaMs = 0;
   if(mode==='race' && !paused){
-    elapsed=Math.floor((performance.now()-raceStartTime-totalPauseMs)/1000);
+    const elapsedMs = nowMs - raceStartTime - totalPauseMs;
+    elapsed = Math.floor(elapsedMs / 1000);
+    deltaMs = nowMs - prevFrameTime;
   }
+  prevFrameTime = nowMs;
 
   // 情報バー
   ctx.fillStyle='rgba(0,0,0,0.55)';
@@ -458,12 +464,9 @@ function loop(){
     ctx.lineTo(START_X, a.baseY+IMG_H+10);
     ctx.stroke();
 
-    // 移動
-    if(mode==='race' && !paused && a.finishTime===null){
-      if(elapsed > a.lastMoveSec && a.x < gx - IMG_W){
-        a.x += a.speed * px;
-        a.lastMoveSec = elapsed;
-      }
+    // 移動（deltaTime連続移動）
+    if(mode==='race' && !paused && a.finishTime===null && deltaMs>0){
+      a.x += a.speed * px * (deltaMs / 1000);
     }
 
     // ゴール判定
