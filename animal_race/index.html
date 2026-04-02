@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>動物の速さくらべ</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'M PLUS Rounded 1c',sans-serif;overflow:hidden;background:#87CEEB}
+canvas{display:block;margin:0 auto}
+#overlay{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,0.55);z-index:10;
+}
+#select-box{
+  background:#fffdf5;border-radius:20px;padding:30px 40px;
+  max-width:560px;width:92%;box-shadow:0 8px 32px rgba(0,0,0,0.3);
+}
+#select-box h1{
+  text-align:center;font-size:1.6rem;font-weight:900;
+  color:#2a5;margin-bottom:20px;
+}
+.animal-row{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 10px;border-radius:10px;cursor:pointer;
+  border:2px solid transparent;transition:background 0.15s;
+  margin-bottom:6px;
+}
+.animal-row:hover{background:#e8f8ee}
+.animal-row.focused{background:#d0f0dd;border-color:#2a5}
+.animal-row input[type=checkbox]{width:18px;height:18px;accent-color:#2a5;cursor:pointer}
+.animal-name{flex:0 0 90px;font-weight:700;font-size:1rem}
+.dist-ctrl{display:flex;align-items:center;gap:6px;margin-left:auto}
+.dist-ctrl button{
+  width:28px;height:28px;border:none;border-radius:6px;
+  background:#2a5;color:#fff;font-size:1.1rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.dist-ctrl button:hover{background:#1a4}
+.dist-val{width:52px;text-align:center;font-weight:700;font-size:0.95rem}
+#start-btn{
+  display:block;margin:20px auto 0;padding:12px 48px;
+  font-family:'M PLUS Rounded 1c',sans-serif;
+  font-size:1.2rem;font-weight:900;
+  background:#f80;color:#fff;border:none;border-radius:50px;
+  cursor:pointer;box-shadow:0 4px 12px rgba(255,136,0,0.4);
+  transition:transform 0.1s,box-shadow 0.1s;
+}
+#start-btn:hover{transform:scale(1.05);box-shadow:0 6px 18px rgba(255,136,0,0.5)}
+#guide{text-align:center;font-size:0.78rem;color:#888;margin-top:12px}
+#pause-btn{
+  display:none;
+  position:fixed;bottom:24px;right:24px;z-index:20;
+  width:60px;height:60px;border-radius:50%;border:none;
+  background:rgba(0,0,0,0.55);color:#fff;font-size:1.6rem;
+  cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);
+  transition:background 0.15s,transform 0.1s;
+  pointer-events:auto;
+}
+#pause-btn:hover{background:rgba(0,0,0,0.75);transform:scale(1.08)}
+#pause-btn.active{background:rgba(255,136,0,0.85)}
+#stop-btn{
+  display:none;
+  position:fixed;bottom:24px;left:24px;z-index:20;
+  height:44px;padding:0 20px;border-radius:22px;border:none;
+  background:rgba(180,30,30,0.82);color:#fff;
+  font-family:'M PLUS Rounded 1c',sans-serif;
+  font-size:1rem;font-weight:700;
+  cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.35);
+  transition:background 0.15s,transform 0.1s;
+}
+#stop-btn:hover{background:rgba(200,20,20,0.95);transform:scale(1.05)}
+</style>
+</head>
+<body>
+
+<!-- 選択画面オーバーレイ -->
+<div id="overlay">
+  <div id="select-box">
+    <h1>🏁 動物の速さくらべ</h1>
+    <div id="animal-list"></div>
+    <button id="start-btn">レーススタート！</button>
+    <p id="guide">チェック：参加 ／ ±ボタン：距離変更</p>
+  </div>
+</div>
+
+<!-- 停止ボタン（レース中のみ表示） -->
+<button id="pause-btn">⏸</button>
+
+<!-- レース中止ボタン -->
+<button id="stop-btn">🏠 選択に戻る</button>
+
+<canvas id="c"></canvas>
+
+<script>
+// =====================
+// 定数・設定
+// =====================
+const ANIMALS = [
+  {name:"キリン",   img:"giraffe.png",   speed:16,  goal:160},
+  {name:"カンガルー",img:"kangaroo.png",  speed:20,  goal:200},
+  {name:"ダチョウ", img:"dachou.png",    speed:23,  goal:160},
+  {name:"ウサギ",   img:"usagi.png",     speed:50,  goal:160},
+  {name:"カメ",     img:"kame.png",      speed:0.3, goal:160},
+  {name:"イヌ",     img:"inu.png",       speed:24,  goal:160},
+];
+const DIST_MIN=10, DIST_MAX=200, DIST_STEP=10;
+const IMG_W=80, IMG_H=40;
+const START_X=110, MAX_DIST=200;
+const INFO_H=70;
+const LANE_H=100;
+const COUNTDOWN=3;
+
+// =====================
+// 状態
+// =====================
+let animals=[]; // 実行時にANIMALSからコピー
+let selected=[];
+let mode='select'; // select | countdown | race | finish
+let countdownVal=COUNTDOWN;
+let countdownTimer=null;
+let raceStartTime=null;
+let pauseStartTime=null;
+let totalPauseMs=0;
+let paused=false;
+let elapsed=0;
+let confettis=[];
+let animFrame=null;
+const CONFETTI_COLORS=['#f44','#fc0','#0cf','#0f6','#c0f'];
+
+// =====================
+// 音声
+// =====================
+const bgm   = new Audio('bgm2.mp3');   bgm.loop=true;
+const sndStart = new Audio('start.mp3');
+const sndGoal  = new Audio('goal.mp3');
+
+// =====================
+// 画像プリロード
+// =====================
+const imgCache={};
+function loadImg(src){
+  if(imgCache[src]) return imgCache[src];
+  const im=new Image();
+  im.onload=()=>{ if(mode==='select') drawSelectPreview(); };
+  im.src=src;
+  imgCache[src]=im;
+  return im;
+}
+ANIMALS.forEach(a=>loadImg(a.img));
+
+// =====================
+// Canvas セットアップ
+// =====================
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+function resize(){
+  canvas.width=window.innerWidth;
+  canvas.height=window.innerHeight;
+}
+window.addEventListener('resize',resize);
+resize();
+
+function goalX(){
+  return canvas.width - 80;
+}
+function pxPerM(){
+  return (goalX()-START_X)/MAX_DIST;
+}
+
+// =====================
+// 選択UI構築
+// =====================
+function buildSelectUI(){
+  const list=document.getElementById('animal-list');
+  list.innerHTML='';
+  ANIMALS.forEach((a,i)=>{
+    const row=document.createElement('div');
+    row.className='animal-row';
+    row.dataset.i=i;
+    row.innerHTML=`
+      <input type="checkbox" id="chk${i}" ${i<2?'checked':''}>
+      <label class="animal-name" for="chk${i}">${a.name}</label>
+      <div class="dist-ctrl">
+        <button data-i="${i}" data-d="-1">−</button>
+        <span class="dist-val" id="dv${i}">${a.goal}m</span>
+        <button data-i="${i}" data-d="1">＋</button>
+      </div>`;
+    list.appendChild(row);
+  });
+  list.addEventListener('click',e=>{
+    const btn=e.target.closest('button[data-i]');
+    if(btn){
+      const i=+btn.dataset.i, d=+btn.dataset.d;
+      ANIMALS[i].goal=Math.min(DIST_MAX,Math.max(DIST_MIN,ANIMALS[i].goal+d*DIST_STEP));
+      document.getElementById('dv'+i).textContent=ANIMALS[i].goal+'m';
+      drawSelectPreview();
+      e.stopPropagation();
+    }
+  });
+}
+// =====================
+// 選択画面プレビュー描画
+// =====================
+function drawSelectPreview(){
+  const W=canvas.width;
+  const preview=ANIMALS.map((a,i)=>({
+    ...a,
+    img: loadImg(a.img),
+    checked: document.getElementById('chk'+i)?document.getElementById('chk'+i).checked:(i<2),
+  })).filter(a=>a.checked);
+
+  const laneCount=preview.length||1;
+  canvas.height=Math.max(window.innerHeight, INFO_H+laneCount*LANE_H+40);
+
+  ctx.fillStyle='#87CEEB'; ctx.fillRect(0,0,W,canvas.height);
+  ctx.fillStyle='#64C864'; ctx.fillRect(0,canvas.height-60,W,60);
+  ctx.fillStyle='#fff';
+  [[100,50,25],[130,40,30],[160,50,25],[400,60,28],[430,50,32],[460,60,28],[700,45,22],[730,35,28],[760,45,22]].forEach(([x,y,r])=>{
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+  });
+  preview.forEach((a,i)=>{
+    const y=INFO_H+i*LANE_H;
+    ctx.fillStyle=i%2===0?'rgba(255,255,255,0.18)':'rgba(255,255,255,0.06)';
+    ctx.fillRect(0,y,W,LANE_H);
+  });
+  drawMarkers();
+  const px=pxPerM();
+  preview.forEach((a,i)=>{
+    const baseY=INFO_H+i*LANE_H+30;
+    const gx=START_X+a.goal*px;
+    ctx.strokeStyle='#e33'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(gx,baseY-14); ctx.lineTo(gx,baseY+IMG_H+14); ctx.stroke();
+    ctx.fillStyle='#e33';
+    ctx.beginPath(); ctx.moveTo(gx,baseY-14); ctx.lineTo(gx+20,baseY-4); ctx.lineTo(gx,baseY+6); ctx.fill();
+    ctx.strokeStyle='#3399ff'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(START_X,baseY-10); ctx.lineTo(START_X,baseY+IMG_H+10); ctx.stroke();
+    ctx.drawImage(a.img, START_X-IMG_W, baseY, IMG_W, IMG_H);
+    ctx.font='bold 14px "M PLUS Rounded 1c",sans-serif';
+    ctx.fillStyle='#222'; ctx.textAlign='center';
+    ctx.fillText(a.name, START_X-IMG_W/2, baseY-6);
+    ctx.textAlign='left';
+  });
+}
+
+buildSelectUI();
+document.getElementById('animal-list').addEventListener('change', ()=>drawSelectPreview());
+window.addEventListener('load', drawSelectPreview);
+setTimeout(drawSelectPreview, 300);
+
+document.getElementById('start-btn').addEventListener('click',startRace);
+
+// =====================
+// レース初期化
+// =====================
+function startRace(){
+  selected=ANIMALS.map((a,i)=>({
+    ...a,
+    img: loadImg(a.img),
+    selected: document.getElementById('chk'+i).checked,
+  })).filter(a=>a.selected);
+  if(!selected.length){alert('動物を1頭以上選んでください');return;}
+
+  const laneCount=selected.length;
+  const totalH=INFO_H + laneCount*LANE_H + 40;
+  canvas.height=Math.max(window.innerHeight,totalH);
+
+  selected.forEach((a,i)=>{
+    a.x = START_X - IMG_W;
+    a.baseY = INFO_H + i*LANE_H + 30;
+    a.y = a.baseY;
+    a.finishTime = null;
+    a.lastMoveSec = 0;
+    a.jumpPhase = 0;
+    a.isJumping = false;
+    a.confettiDone = false;
+  });
+
+  confettis=[];
+  totalPauseMs=0;
+  paused=false;
+  elapsed=0;
+
+  document.getElementById('overlay').style.display='none';
+  document.getElementById('pause-btn').style.display='flex';
+  document.getElementById('pause-btn').classList.remove('active');
+  document.getElementById('stop-btn').style.display='flex';
+  mode='countdown';
+  countdownVal=COUNTDOWN;
+  countdownTimer=setInterval(()=>{
+    countdownVal--;
+    if(countdownVal<=0){
+      clearInterval(countdownTimer);
+      countdownTimer=null;
+      mode='race';
+      raceStartTime=performance.now();
+      sndStart.play();
+      bgm.play().catch(()=>{});
+    }
+  },1000);
+  if(!animFrame) loop();
+}
+
+// =====================
+// 紙吹雪
+// =====================
+function spawnConfetti(x,y){
+  for(let i=0;i<80;i++){
+    confettis.push({
+      x,y,
+      vx:(Math.random()-0.5)*6,
+      vy:Math.random()*-8-3,
+      life:Math.random()*40+40,
+      maxLife:0,
+      color:CONFETTI_COLORS[Math.floor(Math.random()*CONFETTI_COLORS.length)]
+    });
+    confettis[confettis.length-1].maxLife=confettis[confettis.length-1].life;
+  }
+}
+function updateConfetti(){
+  confettis=confettis.filter(c=>c.life>0);
+  confettis.forEach(c=>{
+    c.x+=c.vx; c.y+=c.vy; c.vy+=0.35; c.life--;
+    ctx.globalAlpha=c.life/c.maxLife;
+    ctx.fillStyle=c.color;
+    ctx.beginPath();
+    ctx.arc(c.x,c.y,4,0,Math.PI*2);
+    ctx.fill();
+  });
+  ctx.globalAlpha=1;
+}
+
+// =====================
+// 背景描画
+// =====================
+function drawBg(){
+  const W=canvas.width, H=canvas.height;
+  // 空
+  ctx.fillStyle='#87CEEB'; ctx.fillRect(0,0,W,H);
+  // 雲
+  ctx.fillStyle='#fff';
+  [[100,50,25],[130,40,30],[160,50,25],[400,60,28],[430,50,32],[460,60,28],[700,45,22],[730,35,28],[760,45,22]].forEach(([x,y,r])=>{
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+  });
+  // 草地
+  ctx.fillStyle='#64C864'; ctx.fillRect(0,H-60,W,60);
+  // レーン背景
+  selected.forEach((a,i)=>{
+    const y=INFO_H+i*LANE_H;
+    ctx.fillStyle=i%2===0?'rgba(255,255,255,0.18)':'rgba(255,255,255,0.06)';
+    ctx.fillRect(0,y,W,LANE_H);
+  });
+}
+
+// =====================
+// マーカー描画
+// =====================
+function drawMarkers(){
+  ctx.font='14px "M PLUS Rounded 1c",sans-serif';
+  ctx.fillStyle='#333';
+  ctx.textAlign='center';
+  const px=pxPerM();
+  // 0m
+  ctx.fillText('0m', START_X, INFO_H+18);
+  for(let m=50;m<=MAX_DIST;m+=50){
+    const x=START_X+m*px;
+    ctx.fillText(m+'m', x, INFO_H+18);
+    // 薄いグリッド線
+    ctx.strokeStyle='rgba(0,0,0,0.1)';
+    ctx.lineWidth=1;
+    ctx.setLineDash([4,4]);
+    ctx.beginPath();
+    ctx.moveTo(x, INFO_H+22);
+    ctx.lineTo(x, canvas.height-60);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.textAlign='left';
+}
+
+// =====================
+// カウントダウン描画
+// =====================
+function drawCountdown(){
+  ctx.save();
+  ctx.font='bold 140px "M PLUS Rounded 1c",sans-serif';
+  ctx.textAlign='center';
+  ctx.fillStyle='rgba(0,0,0,0.6)';
+  ctx.fillText(countdownVal, canvas.width/2, canvas.height/2+50);
+  ctx.restore();
+}
+
+// =====================
+// ポーズアイコン
+// =====================
+function drawPause(){
+  ctx.save();
+  ctx.font='bold 140px sans-serif';
+  ctx.textAlign='center';
+  ctx.fillStyle='rgba(255,255,255,0.5)';
+  ctx.fillText('⏸', canvas.width/2, canvas.height/2+50);
+  ctx.restore();
+}
+
+// =====================
+// メインループ
+// =====================
+function loop(){
+  animFrame=requestAnimationFrame(loop);
+  const W=canvas.width;
+  ctx.clearRect(0,0,W,canvas.height);
+  drawBg();
+  drawMarkers();
+
+  // 経過時間計算
+  if(mode==='race' && !paused){
+    elapsed=Math.floor((performance.now()-raceStartTime-totalPauseMs)/1000);
+  }
+
+  // 情報バー
+  ctx.fillStyle='rgba(0,0,0,0.55)';
+  ctx.fillRect(0,0,W,INFO_H-10);
+  if(mode!=='countdown'){
+    ctx.font='bold 22px "M PLUS Rounded 1c",sans-serif';
+    ctx.fillStyle='#fff';
+    ctx.textAlign='center';
+    ctx.fillText('⏱ '+elapsed+' 秒', W/2, 38);
+    ctx.textAlign='left';
+  }
+
+  const px=pxPerM();
+  let allGoal=true;
+
+  selected.forEach(a=>{
+    const gx=START_X+a.goal*px;
+
+    // ゴール線＋旗
+    ctx.strokeStyle='#e33';
+    ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.moveTo(gx, a.baseY-14);
+    ctx.lineTo(gx, a.baseY+IMG_H+14);
+    ctx.stroke();
+    ctx.fillStyle='#e33';
+    ctx.beginPath();
+    ctx.moveTo(gx, a.baseY-14);
+    ctx.lineTo(gx+20, a.baseY-4);
+    ctx.lineTo(gx, a.baseY+6);
+    ctx.fill();
+
+    // スタートライン
+    ctx.strokeStyle='#3399ff';
+    ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.moveTo(START_X, a.baseY-10);
+    ctx.lineTo(START_X, a.baseY+IMG_H+10);
+    ctx.stroke();
+
+    // 移動
+    if(mode==='race' && !paused && a.finishTime===null){
+      if(elapsed > a.lastMoveSec && a.x < gx - IMG_W){
+        a.x += a.speed * px;
+        a.lastMoveSec = elapsed;
+      }
+    }
+
+    // ゴール判定
+    if(a.x >= gx - IMG_W){
+      a.x = gx - IMG_W;
+      if(a.finishTime===null && mode==='race'){
+        a.finishTime = elapsed;
+        if(!a.confettiDone){
+          spawnConfetti(gx, a.baseY+IMG_H/2);
+          a.confettiDone=true;
+          a.isJumping=true;
+        }
+      }
+    } else {
+      allGoal=false;
+    }
+
+    // ジャンプ
+    let drawY=a.baseY;
+    if(a.isJumping){
+      a.jumpPhase+=0.25;
+      drawY=a.baseY - Math.abs(Math.sin(a.jumpPhase))*18;
+    }
+
+    // 動物画像
+    ctx.drawImage(a.img, a.x, drawY, IMG_W, IMG_H);
+
+    // 名前
+    ctx.font='bold 14px "M PLUS Rounded 1c",sans-serif';
+    ctx.fillStyle='#222';
+    ctx.textAlign='center';
+    ctx.fillText(a.name, a.x+IMG_W/2, drawY-6);
+
+    // タイム表示（動物の左側に固定表示）
+    if(a.finishTime!==null){
+      ctx.font='bold 18px "M PLUS Rounded 1c",sans-serif';
+      const timeText='🏅 '+a.finishTime+'秒';
+      ctx.fillStyle='#e33';
+      ctx.textAlign='right';
+      ctx.fillText(timeText, a.x - 6, a.baseY+IMG_H/2+6);
+      ctx.textAlign='left';
+    }
+
+    ctx.textAlign='left';
+  });
+
+  updateConfetti();
+
+  // カウントダウンを動物の上に重ねる
+  if(mode==='countdown') drawCountdown();
+
+  // 全頭ゴール
+  if(allGoal && mode==='race'){
+    mode='finish';
+    bgm.pause(); bgm.currentTime=0;
+    sndGoal.play();
+    setTimeout(()=>showResult(),1500);
+  }
+
+  // ポーズ表示
+  if(paused) drawPause();
+}
+
+// =====================
+// リザルト表示
+// =====================
+function showResult(){
+  const overlay=document.getElementById('overlay');
+  const box=document.getElementById('select-box');
+  const sorted=[...selected].filter(a=>a.finishTime!==null)
+                             .sort((a,b)=>a.finishTime-b.finishTime);
+  const medal=['🥇','🥈','🥉'];
+  let html=`<h1>🏁 レース結果！</h1>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
+  <tr style="background:#e8f8ee"><th style="padding:6px 4px">順位</th><th>名前</th><th>距離</th><th>タイム</th></tr>`;
+  sorted.forEach((a,i)=>{
+    html+=`<tr style="text-align:center;border-bottom:1px solid #ddd">
+      <td style="font-size:1.4rem">${medal[i]||i+1+'位'}</td>
+      <td style="font-weight:700">${a.name}</td>
+      <td>${a.goal}m</td>
+      <td style="font-weight:700;color:#e33">${a.finishTime}秒</td>
+    </tr>`;
+  });
+  html+=`</table>
+  <button id="start-btn" onclick="resetToSelect()" style="background:#2a5">もう一度遊ぶ</button>`;
+  box.innerHTML=html;
+  overlay.style.display='flex';
+  document.getElementById('pause-btn').style.display='none';
+  document.getElementById('stop-btn').style.display='none';
+}
+
+function resetToSelect(){
+  cancelAnimationFrame(animFrame); animFrame=null;
+  mode='select';
+  bgm.pause(); bgm.currentTime=0;
+  document.getElementById('pause-btn').style.display='none';
+  document.getElementById('pause-btn').classList.remove('active');
+  document.getElementById('stop-btn').style.display='none';
+  const box=document.getElementById('select-box');
+  box.innerHTML='';
+  box.innerHTML=`<h1>🏁 動物の速さくらべ</h1><div id="animal-list"></div>
+  <button id="start-btn">レーススタート！</button>
+  <p id="guide">チェック：参加 ／ ±ボタン：距離変更</p>`;
+  buildSelectUI();
+  document.getElementById('animal-list').addEventListener('change', ()=>drawSelectPreview());
+  document.getElementById('start-btn').addEventListener('click',startRace);
+  document.getElementById('overlay').style.display='flex';
+  drawSelectPreview();
+}
+
+// =====================
+// ポーズ切り替え共通処理
+// =====================
+function togglePause(){
+  if(mode!=='race') return;
+  paused=!paused;
+  const btn=document.getElementById('pause-btn');
+  if(paused){
+    pauseStartTime=performance.now();
+    bgm.pause();
+    btn.textContent='▶';
+    btn.classList.add('active');
+  } else {
+    totalPauseMs+=performance.now()-pauseStartTime;
+    bgm.play().catch(()=>{});
+    btn.textContent='⏸';
+    btn.classList.remove('active');
+  }
+}
+
+document.getElementById('pause-btn').addEventListener('click', togglePause);
+document.getElementById('stop-btn').addEventListener('click', resetToSelect);
+
+// =====================
+// キーボード操作
+// =====================
+document.addEventListener('keydown',e=>{
+  if(e.key==='p'||e.key==='P') togglePause();
+});
+</script>
+</body>
+</html>
