@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Countdown Game</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f4f6fb;
+      color: #111;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px;
+    }
+
+    .app {
+      width: min(680px, 100%);
+      background: #ffffff;
+      border-radius: 18px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+      padding: 18px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 26px;
+      text-align: center;
+    }
+
+    .description {
+      margin: 0 auto 14px;
+      max-width: 580px;
+      color: #444;
+      line-height: 1.7;
+      font-size: 14px;
+    }
+
+    .screen {
+      position: relative;
+      width: 100%;
+      min-height: 520px;
+      background: white;
+      border: 2px solid #222;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .menu-title {
+      position: absolute;
+      width: 100%;
+      top: 72px;
+      text-align: center;
+      font-size: 34px;
+      font-weight: 700;
+    }
+
+    .start-setting {
+      position: absolute;
+      left: 50%;
+      top: 132px;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .pm-button {
+      width: 58px;
+      height: 58px;
+      border: 2px solid #111;
+      background: rgb(200, 200, 200);
+      border-radius: 10px;
+      font-size: 42px;
+      line-height: 1;
+      text-align: center;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .pm-button:hover:not(:disabled) {
+      background: rgb(220, 220, 220);
+    }
+
+    .pm-button:disabled {
+      background: rgb(150, 150, 150);
+      cursor: not-allowed;
+    }
+
+    .start-number-box {
+      width: 150px;
+      text-align: center;
+    }
+
+    .number-input {
+      width: 100%;
+      height: 66px;
+      border: 2px solid #222;
+      border-radius: 12px;
+      text-align: center;
+      font-size: 48px;
+      font-weight: 800;
+      color: rgb(50, 50, 200);
+      outline: none;
+    }
+
+    .number-input:focus {
+      box-shadow: 0 0 0 4px rgba(50, 50, 200, 0.15);
+    }
+
+    .range-wrap {
+      position: absolute;
+      left: 50%;
+      top: 220px;
+      transform: translateX(-50%);
+      width: min(420px, 80%);
+      text-align: center;
+      font-size: 14px;
+      color: #444;
+    }
+
+    .range-wrap input {
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    .number-display {
+      position: absolute;
+      width: 100%;
+      top: 188px;
+      text-align: center;
+      font-size: 140px;
+      line-height: 1;
+      font-weight: 800;
+      user-select: none;
+    }
+
+    .number-display.first-color {
+      color: #d84f4f;
+    }
+
+    .number-display.second-color {
+      color: #4f63d8;
+    }
+
+    .number-display.clickable {
+      cursor: pointer;
+      transition: 0.12s;
+    }
+
+    .number-display.clickable:hover {
+      transform: scale(1.03);
+      filter: brightness(0.9);
+    }
+
+    .game-over {
+      position: absolute;
+      width: 100%;
+      top: 215px;
+      text-align: center;
+      font-size: 64px;
+      line-height: 1;
+      font-weight: 800;
+      color: rgb(200, 50, 50);
+    }
+
+    .turn-label {
+      position: absolute;
+      left: 50%;
+      top: 142px;
+      transform: translateX(-50%);
+      text-align: center;
+      font-size: 26px;
+      font-weight: 800;
+      padding: 6px 18px;
+      border-radius: 999px;
+    }
+
+    .turn-label.first {
+      color: #d84f4f;
+      background: #ffe5e5;
+      border: 2px solid #d84f4f;
+    }
+
+    .turn-label.second {
+      color: #4f63d8;
+      background: #e7eaff;
+      border: 2px solid #4f63d8;
+    }
+
+    .main-button {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 20px;
+      width: 220px;
+      height: 54px;
+      border: 2px solid #111;
+      background: rgb(200, 200, 200);
+      border-radius: 8px;
+      font-size: 28px;
+      cursor: pointer;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .main-button:hover:not(:disabled) {
+      background: rgb(220, 220, 220);
+    }
+
+    .main-button:disabled {
+      background: rgb(150, 150, 150);
+      cursor: not-allowed;
+    }
+
+    .main-button.first-active {
+      border-color: #d84f4f;
+    }
+
+    .main-button.second-active {
+      border-color: #4f63d8;
+    }
+
+    .button-label {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      place-items: center;
+      width: 100%;
+      height: 100%;
+      font-weight: 700;
+    }
+
+    .button-label.flash {
+      color: rgb(200, 50, 50);
+      font-size: 34px;
+      font-weight: 900;
+    }
+
+    .gauge {
+      position: absolute;
+      left: 2px;
+      top: 2px;
+      bottom: 2px;
+      z-index: 1;
+      transition: width 0.15s;
+    }
+
+    .gauge.first {
+      background: rgba(216, 79, 79, 0.45);
+    }
+
+    .gauge.second {
+      background: rgba(79, 99, 216, 0.45);
+    }
+
+    .top-numbers {
+      position: absolute;
+      left: 0;
+      top: 18px;
+      width: 100%;
+      padding: 0 8px;
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      row-gap: 5px;
+      text-align: center;
+      font-size: 20px;
+      line-height: 1.1;
+    }
+
+    .top-number {
+      color: #111;
+    }
+
+    .top-number.past {
+      color: rgb(220, 220, 220);
+    }
+
+    .top-number.first-played {
+      color: #d84f4f;
+      font-weight: 800;
+    }
+
+    .top-number.second-played {
+      color: #4f63d8;
+      font-weight: 800;
+    }
+
+    .top-number.current-first {
+      color: #d84f4f;
+      font-weight: 900;
+      text-decoration: underline;
+    }
+
+    .top-number.current-second {
+      color: #4f63d8;
+      font-weight: 900;
+      text-decoration: underline;
+    }
+
+    .players-info {
+      position: absolute;
+      left: 0;
+      bottom: 88px;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .badge {
+      border-radius: 999px;
+      padding: 6px 14px;
+      border: 2px solid transparent;
+    }
+
+    .badge.first {
+      color: #d84f4f;
+      background: #ffe5e5;
+      border-color: #d84f4f;
+    }
+
+    .badge.second {
+      color: #4f63d8;
+      background: #e7eaff;
+      border-color: #4f63d8;
+    }
+
+    .rule {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: #f7f8fb;
+      border-radius: 10px;
+      color: #555;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 520px) {
+      .screen {
+        min-height: 500px;
+      }
+
+      .menu-title {
+        font-size: 26px;
+      }
+
+      .number-display {
+        font-size: 108px;
+      }
+
+      .game-over {
+        font-size: 48px;
+      }
+
+      .top-numbers {
+        font-size: 16px;
+      }
+
+      .start-setting {
+        gap: 8px;
+      }
+
+      .start-number-box {
+        width: 120px;
+      }
+
+      .number-input {
+        font-size: 38px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>Countdown Game</h1>
+    <p class="description">
+      開始数を選び、中央の数字をクリックして1ずつ減らします。
+      1ターンに最大3回までクリックできます。「Change Turn」で交代します。
+      1をクリックしたプレイヤーが負けです。
+    </p>
+
+    <section id="screen" class="screen"></section>
+
+  </main>
+
+  <script>
+    const screenEl = document.getElementById("screen");
+
+    const MIN_START = 1;
+    const MAX_START = 51;
+
+    let gameState = "menu";
+    let startingNumber = 31;
+    let startingPlayer = 1;
+
+    let currentNumber = null;
+    let tapsRemaining = 3;
+    let gameOver = false;
+    let flashTimer = 0;
+    let flashInterval = null;
+    let currentPlayer = 1;
+    let numberOwners = {};
+
+    function playerClass(player) {
+      return player === 1 ? "first" : "second";
+    }
+
+    function playerColorClass(player) {
+      return player === 1 ? "first-color" : "second-color";
+    }
+
+    function playerName(player) {
+      return player === 1 ? "先攻" : "後攻";
+    }
+
+    function clampStartValue(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return startingNumber;
+      return Math.max(MIN_START, Math.min(MAX_START, Math.round(n)));
+    }
+
+    function setStartingNumber(value) {
+      startingNumber = clampStartValue(value);
+      render();
+    }
+
+    function resetPlayState() {
+      currentNumber = startingNumber;
+      tapsRemaining = 3;
+      gameOver = false;
+      currentPlayer = startingPlayer;
+      numberOwners = {};
+      flashTimer = 0;
+      stopFlashTimer();
+    }
+
+    function startFlash() {
+      flashTimer = 15;
+      stopFlashTimer();
+
+      flashInterval = setInterval(() => {
+        flashTimer -= 1;
+        if (flashTimer <= 0) {
+          stopFlashTimer();
+        }
+        render();
+      }, 1000 / 30);
+    }
+
+    function stopFlashTimer() {
+      if (flashInterval !== null) {
+        clearInterval(flashInterval);
+        flashInterval = null;
+      }
+    }
+
+    function changeStartingNumber(delta) {
+      setStartingNumber(startingNumber + delta);
+    }
+
+    function startGame() {
+      resetPlayState();
+      gameState = "play";
+      render();
+    }
+
+    function clickMainNumber() {
+      if (gameState !== "play" || gameOver) return;
+      if (tapsRemaining <= 0) return;
+
+      if (currentNumber > 1) {
+        numberOwners[currentNumber] = currentPlayer;
+        currentNumber -= 1;
+        tapsRemaining -= 1;
+
+        if (tapsRemaining === 0) {
+          tapsRemaining = 3;
+          currentPlayer = currentPlayer === 1 ? 2 : 1;
+          startFlash();
+        }
+      } else {
+        numberOwners[currentNumber] = currentPlayer;
+        gameOver = true;
+      }
+
+      render();
+    }
+
+    function changeTurn() {
+      if (gameState !== "play" || gameOver) return;
+
+      if (tapsRemaining < 3 || currentNumber === 1) {
+        tapsRemaining = 3;
+        currentPlayer = currentPlayer === 1 ? 2 : 1;
+        startFlash();
+        render();
+      }
+    }
+
+    function backToMenu() {
+      gameState = "menu";
+      stopFlashTimer();
+      render();
+    }
+
+    function renderMenu() {
+      screenEl.innerHTML = "";
+
+      const title = document.createElement("div");
+      title.className = "menu-title";
+      title.textContent = "Select Start (1–51)";
+
+      const setting = document.createElement("div");
+      setting.className = "start-setting";
+
+      const minus = document.createElement("button");
+      minus.className = "pm-button";
+      minus.textContent = "−";
+      minus.disabled = startingNumber <= MIN_START;
+      minus.addEventListener("click", () => changeStartingNumber(-1));
+
+      const box = document.createElement("div");
+      box.className = "start-number-box";
+
+      const input = document.createElement("input");
+      input.className = "number-input";
+      input.type = "number";
+      input.min = String(MIN_START);
+      input.max = String(MAX_START);
+      input.value = String(startingNumber);
+      input.addEventListener("change", () => setStartingNumber(input.value));
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          input.blur();
+          setStartingNumber(input.value);
+        }
+      });
+
+      box.appendChild(input);
+
+      const plus = document.createElement("button");
+      plus.className = "pm-button";
+      plus.textContent = "+";
+      plus.disabled = startingNumber >= MAX_START;
+      plus.addEventListener("click", () => changeStartingNumber(1));
+
+      setting.append(minus, box, plus);
+
+      const rangeWrap = document.createElement("div");
+      rangeWrap.className = "range-wrap";
+      rangeWrap.innerHTML = `
+        <div>開始数を変更：${startingNumber}</div>
+      `;
+
+      const range = document.createElement("input");
+      range.type = "range";
+      range.min = String(MIN_START);
+      range.max = String(MAX_START);
+      range.value = String(startingNumber);
+      range.addEventListener("input", () => setStartingNumber(range.value));
+      rangeWrap.appendChild(range);
+
+      const playersInfo = document.createElement("div");
+      playersInfo.className = "players-info";
+      playersInfo.innerHTML = `
+        <span class="badge first">先攻：赤</span>
+        <span class="badge second">後攻：青</span>
+      `;
+
+      const start = document.createElement("button");
+      start.className = "main-button";
+      start.innerHTML = `<span class="button-label">Start</span>`;
+      start.addEventListener("click", startGame);
+
+      screenEl.append(title, setting, rangeWrap, playersInfo, start);
+    }
+
+    function renderTopNumbers() {
+      const list = document.createElement("div");
+      list.className = "top-numbers";
+
+      for (let i = 0; i < startingNumber; i++) {
+        const n = startingNumber - i;
+        const item = document.createElement("div");
+        item.className = "top-number";
+        item.textContent = n;
+
+        if (numberOwners[n] === 1) {
+          item.classList.add("first-played");
+        } else if (numberOwners[n] === 2) {
+          item.classList.add("second-played");
+        } else if (n > currentNumber) {
+          item.classList.add("past");
+        }
+
+        if (n === currentNumber && !gameOver) {
+          item.classList.add(currentPlayer === 1 ? "current-first" : "current-second");
+        }
+
+        list.appendChild(item);
+      }
+
+      return list;
+    }
+
+    function renderPlay() {
+      screenEl.innerHTML = "";
+
+      screenEl.appendChild(renderTopNumbers());
+
+      const turn = document.createElement("div");
+      turn.className = `turn-label ${playerClass(currentPlayer)}`;
+      turn.textContent = `${playerName(currentPlayer)}の番`;
+      screenEl.appendChild(turn);
+
+      if (!gameOver) {
+        const number = document.createElement("div");
+        number.className = `number-display clickable ${playerColorClass(currentPlayer)}`;
+        number.textContent = currentNumber;
+        number.addEventListener("click", clickMainNumber);
+        screenEl.appendChild(number);
+
+        const canChange = tapsRemaining < 3 || currentNumber === 1;
+
+        const button = document.createElement("button");
+        button.className = `main-button ${currentPlayer === 1 ? "first-active" : "second-active"}`;
+        button.disabled = !canChange;
+
+        if (flashTimer > 0) {
+          button.style.background = currentPlayer === 1 ? "#ffe5e5" : "#e7eaff";
+        }
+
+        const gauge = document.createElement("div");
+        gauge.className = `gauge ${playerClass(currentPlayer)}`;
+        gauge.style.width = `${(216 * tapsRemaining) / 3}px`;
+
+        const label = document.createElement("span");
+        label.className = "button-label";
+        if (flashTimer > 0) label.classList.add("flash");
+        label.textContent = "Change Turn";
+
+        button.append(gauge, label);
+        button.addEventListener("click", changeTurn);
+
+        screenEl.appendChild(button);
+      } else {
+        const gameOverText = document.createElement("div");
+        gameOverText.className = "game-over";
+        gameOverText.textContent = `${playerName(currentPlayer)}の負け`;
+
+        const restart = document.createElement("button");
+        restart.className = "main-button";
+        restart.innerHTML = `<span class="button-label">Restart</span>`;
+        restart.addEventListener("click", backToMenu);
+
+        screenEl.append(gameOverText, restart);
+      }
+    }
+
+    function render() {
+      if (gameState === "menu") {
+        renderMenu();
+      } else {
+        renderPlay();
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>
