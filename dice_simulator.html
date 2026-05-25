@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dice Simulator</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #f4f6f8;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #111;
+    }
+
+    .app {
+      width: 800px;
+      height: 600px;
+      background: #ffffff;
+      border: 2px solid #111;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ratio {
+      position: absolute;
+      top: 16px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      font-size: 40px;
+      font-weight: bold;
+    }
+
+    .controls {
+      position: absolute;
+      top: 30px;
+      right: 30px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    button {
+      width: 150px;
+      height: 40px;
+      border: 2px solid #111;
+      border-radius: 10px;
+      background: #c8c8c8;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #a0a0a0;
+    }
+
+    button.selected {
+      background: #787878;
+    }
+
+    .dice-area {
+      position: absolute;
+      top: 260px;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dice {
+      width: 60px;
+      height: 60px;
+      border: 2px solid #111;
+      background: white;
+      position: relative;
+      flex: 0 0 auto;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: black;
+      position: absolute;
+      transform: translate(-50%, -50%);
+    }
+
+    .dot.red {
+      background: red;
+    }
+
+    .graph-wrap {
+      position: absolute;
+      left: 50px;
+      bottom: 30px;
+      width: 700px;
+      height: 100px;
+      border: 2px solid #111;
+      background: white;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    .y-label {
+      position: absolute;
+      left: -40px;
+      transform: translateY(-50%);
+      font-size: 16px;
+    }
+
+    .x-label {
+      position: absolute;
+      bottom: -28px;
+      transform: translateX(-50%);
+      font-size: 16px;
+    }
+
+    @media (max-width: 840px) {
+      body {
+        align-items: flex-start;
+        padding: 10px;
+      }
+
+      .app {
+        transform: scale(calc((100vw - 20px) / 800));
+        transform-origin: top center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div id="ratio" class="ratio">0 / 0 = 0.00</div>
+
+    <div class="controls">
+      <button id="choose1" class="selected">Choose 1</button>
+      <button id="choose10">Choose 10</button>
+      <button id="roll">Roll</button>
+      <button id="reset">Reset</button>
+    </div>
+
+    <div id="diceArea" class="dice-area"></div>
+
+    <div class="graph-wrap" id="graphWrap">
+      <canvas id="graph" width="700" height="100"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const diceArea = document.getElementById("diceArea");
+    const ratioDisplay = document.getElementById("ratio");
+    const choose1Button = document.getElementById("choose1");
+    const choose10Button = document.getElementById("choose10");
+    const rollButton = document.getElementById("roll");
+    const resetButton = document.getElementById("reset");
+    const graphCanvas = document.getElementById("graph");
+    const ctx = graphCanvas.getContext("2d");
+
+    let diceValues = [];
+    let diceCount = 1;
+    let rolling = false;
+    let totalRolls = 0;
+    let totalOnes = 0;
+    let ratioHistory = [];
+    let rollAnimationId = null;
+    let rollTimeoutId = null;
+
+    const dotPositions = {
+      1: [[0, 0]],
+      2: [[-1, -1], [1, 1]],
+      3: [[-1, -1], [0, 0], [1, 1]],
+      4: [[-1, -1], [-1, 1], [1, -1], [1, 1]],
+      5: [[-1, -1], [-1, 1], [0, 0], [1, -1], [1, 1]],
+      6: [[-1, -1], [-1, 0], [-1, 1], [1, -1], [1, 0], [1, 1]]
+    };
+
+    function randomDiceValue() {
+      return Math.floor(Math.random() * 6) + 1;
+    }
+
+    function updateSelectedButtons() {
+      choose1Button.classList.toggle("selected", diceCount === 1);
+      choose10Button.classList.toggle("selected", diceCount === 10);
+    }
+
+    function updateRatio() {
+      if (totalRolls === 0) {
+        ratioDisplay.textContent = "0 / 0 = 0.00";
+      } else {
+        const ratio = totalOnes / totalRolls;
+        ratioDisplay.textContent = `${totalOnes} / ${totalRolls} = ${ratio.toFixed(2)}`;
+      }
+    }
+
+    function createDice(num) {
+      const dice = document.createElement("div");
+      dice.className = "dice";
+
+      const offset = 15;
+      const cx = 30;
+      const cy = 30;
+
+      dotPositions[num].forEach(([dx, dy]) => {
+        const dot = document.createElement("div");
+        dot.className = "dot";
+        if (num === 1 && dx === 0 && dy === 0) {
+          dot.classList.add("red");
+        }
+        dot.style.left = `${cx + dx * offset}px`;
+        dot.style.top = `${cy + dy * offset}px`;
+        dice.appendChild(dot);
+      });
+
+      return dice;
+    }
+
+    function drawDiceList() {
+      diceArea.innerHTML = "";
+      diceValues.forEach(value => {
+        diceArea.appendChild(createDice(value));
+      });
+    }
+
+    function drawRatioGraph() {
+      const graphWidth = 700;
+      const graphHeight = 100;
+      const minY = -0.1;
+      const maxY = 0.4;
+      const scaleX = graphWidth / 500;
+      const scaleY = graphHeight / (maxY - minY);
+
+      ctx.clearRect(0, 0, graphWidth, graphHeight);
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, graphWidth, graphHeight);
+
+      ctx.strokeStyle = "#c8c8c8";
+      ctx.lineWidth = 1;
+
+      // 横補助線と縦軸目盛り
+      [0.0, 0.1, 0.2, 0.3, 0.4].forEach(yVal => {
+        const y = graphHeight - (yVal - minY) * scaleY;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(graphWidth, y);
+        ctx.stroke();
+      });
+
+      // 縦補助線と横軸目盛り
+      for (let xVal = 0; xVal <= 500; xVal += 100) {
+        const x = xVal * scaleX;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, graphHeight);
+        ctx.stroke();
+      }
+
+      // y = 1/6 の補助線
+      const yRef = graphHeight - ((1 / 6) - minY) * scaleY;
+      ctx.strokeStyle = "rgb(100, 200, 255)";
+      ctx.beginPath();
+      ctx.moveTo(0, yRef);
+      ctx.lineTo(graphWidth, yRef);
+      ctx.stroke();
+
+      // グラフ外枠
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(0, 0, graphWidth, graphHeight);
+
+      // 比率履歴
+      if (ratioHistory.length >= 2) {
+        ctx.strokeStyle = "rgb(0, 100, 200)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        let started = false;
+
+        for (let i = 0; i < ratioHistory.length; i++) {
+          const [xVal, yVal] = ratioHistory[i];
+          if (xVal > 500) continue;
+          const x = xVal * scaleX;
+          const y = graphHeight - (yVal - minY) * scaleY;
+
+          if (!started) {
+            ctx.moveTo(x, y);
+            started = true;
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+
+        ctx.stroke();
+      }
+    }
+
+    function drawAxisLabels() {
+      const graphWrap = document.getElementById("graphWrap");
+      graphWrap.querySelectorAll(".x-label, .y-label").forEach(label => label.remove());
+
+      const graphHeight = 100;
+      const graphWidth = 700;
+      const minY = -0.1;
+      const maxY = 0.4;
+      const scaleY = graphHeight / (maxY - minY);
+      const scaleX = graphWidth / 500;
+
+      [0.0, 0.1, 0.2, 0.3, 0.4].forEach(yVal => {
+        const label = document.createElement("div");
+        label.className = "y-label";
+        label.textContent = yVal.toFixed(1);
+        label.style.top = `${graphHeight - (yVal - minY) * scaleY}px`;
+        graphWrap.appendChild(label);
+      });
+
+      for (let xVal = 0; xVal <= 500; xVal += 100) {
+        const label = document.createElement("div");
+        label.className = "x-label";
+        label.textContent = xVal;
+        label.style.left = `${xVal * scaleX}px`;
+        graphWrap.appendChild(label);
+      }
+    }
+
+    function render() {
+      updateSelectedButtons();
+      updateRatio();
+      drawDiceList();
+      drawRatioGraph();
+    }
+
+    function startRolling() {
+      if (rolling) return;
+      rolling = true;
+
+      const animate = () => {
+        diceValues = Array.from({ length: diceCount }, randomDiceValue);
+        drawDiceList();
+        if (rolling) {
+          rollAnimationId = requestAnimationFrame(animate);
+        }
+      };
+
+      animate();
+
+      rollTimeoutId = setTimeout(() => {
+        rolling = false;
+        if (rollAnimationId !== null) {
+          cancelAnimationFrame(rollAnimationId);
+        }
+
+        diceValues.forEach(value => {
+          totalRolls += 1;
+          if (value === 1) totalOnes += 1;
+          ratioHistory.push([totalRolls, totalOnes / totalRolls]);
+        });
+
+        render();
+      }, 500);
+    }
+
+    choose1Button.addEventListener("click", () => {
+      diceCount = 1;
+      diceValues = [];
+      render();
+    });
+
+    choose10Button.addEventListener("click", () => {
+      diceCount = 10;
+      diceValues = [];
+      render();
+    });
+
+    rollButton.addEventListener("click", startRolling);
+
+    resetButton.addEventListener("click", () => {
+      rolling = false;
+      if (rollAnimationId !== null) cancelAnimationFrame(rollAnimationId);
+      if (rollTimeoutId !== null) clearTimeout(rollTimeoutId);
+
+      diceCount = 1;
+      diceValues = [];
+      totalRolls = 0;
+      totalOnes = 0;
+      ratioHistory = [];
+      render();
+    });
+
+    drawAxisLabels();
+    render();
+  </script>
+</body>
+</html>
