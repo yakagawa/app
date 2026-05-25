@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gacha Simulator</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #ffffff;
+      color: #000000;
+    }
+
+    .app {
+      width: min(100%, 860px);
+      margin: 0 auto;
+      padding: 10px;
+    }
+
+    h1 {
+      margin: 10px 0 16px;
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(10, 65px);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      width: 65px;
+      height: 65px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-start;
+      padding: 10px;
+      font-size: 24px;
+      background: rgb(200, 200, 200);
+      border: none;
+      color: #000000;
+      user-select: none;
+    }
+
+    .card.obtained {
+      background: rgb(100, 149, 237);
+    }
+
+    .card.recent {
+      background: rgb(255, 100, 100);
+    }
+
+    .bottom-area {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    .info {
+      font-size: 24px;
+      line-height: 1.7;
+      min-width: 320px;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: 200px 200px;
+      gap: 20px;
+      justify-content: end;
+    }
+
+    button {
+      width: 200px;
+      height: 50px;
+      font-size: 24px;
+      border: none;
+      background: rgb(180, 180, 180);
+      color: #000000;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: rgb(160, 160, 160);
+    }
+
+    #resetButton {
+      grid-column: 2;
+    }
+
+    @media (max-width: 760px) {
+      .app {
+        padding: 8px;
+      }
+
+      .grid {
+        grid-template-columns: repeat(10, 1fr);
+        gap: 6px;
+      }
+
+      .card {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1 / 1;
+        font-size: 16px;
+        padding: 6px;
+      }
+
+      .bottom-area {
+        flex-direction: column;
+      }
+
+      .info {
+        font-size: 18px;
+      }
+
+      .buttons {
+        width: 100%;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      button {
+        width: 100%;
+        font-size: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>Gacha Simulator</h1>
+
+    <div id="grid" class="grid"></div>
+
+    <section class="bottom-area">
+      <div class="info">
+        <div>Total draws: <span id="drawCount">0</span></div>
+        <div>Unique cards obtained: <span id="uniqueCount">0</span></div>
+        <div id="lastDrawLine" style="display: none;">
+          Last drawn number: <span id="lastDraw">-</span>
+        </div>
+      </div>
+
+      <div class="buttons">
+        <button id="draw1Button">1 Draw</button>
+        <button id="draw10Button">10 Draws</button>
+        <button id="resetButton">Reset</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const GRID_SIZE = 10;
+    const TOTAL_CARDS = GRID_SIZE * GRID_SIZE;
+    const RECENT_DISPLAY_TIME = 350; // milliseconds
+
+    let obtained = Array(TOTAL_CARDS).fill(false);
+    let drawCount = 0;
+    let lastDraw = null;
+    let recentDrawIndices = [];
+    let recentTimerId = null;
+
+    const grid = document.getElementById("grid");
+    const drawCountSpan = document.getElementById("drawCount");
+    const uniqueCountSpan = document.getElementById("uniqueCount");
+    const lastDrawLine = document.getElementById("lastDrawLine");
+    const lastDrawSpan = document.getElementById("lastDraw");
+    const draw1Button = document.getElementById("draw1Button");
+    const draw10Button = document.getElementById("draw10Button");
+    const resetButton = document.getElementById("resetButton");
+
+    function createCards() {
+      grid.innerHTML = "";
+
+      for (let i = 0; i < TOTAL_CARDS; i++) {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.textContent = i + 1;
+        card.dataset.index = i;
+        grid.appendChild(card);
+      }
+    }
+
+    function randomCardIndex() {
+      return Math.floor(Math.random() * TOTAL_CARDS);
+    }
+
+    function drawCards(times) {
+      recentDrawIndices = [];
+
+      for (let i = 0; i < times; i++) {
+        const n = randomCardIndex();
+        obtained[n] = true;
+        drawCount += 1;
+        lastDraw = n + 1;
+        recentDrawIndices.push(n);
+      }
+
+      render();
+      startRecentTimer();
+    }
+
+    function startRecentTimer() {
+      if (recentTimerId !== null) {
+        clearTimeout(recentTimerId);
+      }
+
+      recentTimerId = setTimeout(() => {
+        recentDrawIndices = [];
+        recentTimerId = null;
+        render();
+      }, RECENT_DISPLAY_TIME);
+    }
+
+    function resetGame() {
+      obtained = Array(TOTAL_CARDS).fill(false);
+      drawCount = 0;
+      lastDraw = null;
+      recentDrawIndices = [];
+
+      if (recentTimerId !== null) {
+        clearTimeout(recentTimerId);
+        recentTimerId = null;
+      }
+
+      render();
+    }
+
+    function render() {
+      const cards = document.querySelectorAll(".card");
+
+      cards.forEach((card, i) => {
+        card.classList.remove("obtained", "recent");
+
+        if (recentDrawIndices.includes(i)) {
+          card.classList.add("recent");
+        } else if (obtained[i]) {
+          card.classList.add("obtained");
+        }
+      });
+
+      drawCountSpan.textContent = drawCount;
+      uniqueCountSpan.textContent = obtained.filter(Boolean).length;
+
+      if (lastDraw === null) {
+        lastDrawLine.style.display = "none";
+      } else {
+        lastDrawLine.style.display = "block";
+        lastDrawSpan.textContent = lastDraw;
+      }
+    }
+
+    draw1Button.addEventListener("click", () => drawCards(1));
+    draw10Button.addEventListener("click", () => drawCards(10));
+    resetButton.addEventListener("click", resetGame);
+
+    createCards();
+    render();
+  </script>
+</body>
+</html>
