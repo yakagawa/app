@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Find the Max Card</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f4f6fb;
+      color: #111;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px;
+    }
+
+    .app {
+      width: min(980px, 100%);
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.13);
+      padding: 18px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      text-align: center;
+      font-size: 26px;
+    }
+
+    .description {
+      margin: 0 auto 14px;
+      max-width: 780px;
+      line-height: 1.7;
+      color: #444;
+      font-size: 14px;
+    }
+
+    .screen {
+      width: 100%;
+      min-height: 360px;
+      border: 2px solid #222;
+      border-radius: 14px;
+      background: white;
+      padding: 16px;
+      overflow: auto;
+    }
+
+    .choose {
+      width: min(420px, 100%);
+      margin: 0 auto;
+      padding: 8px 0;
+    }
+
+    .setting-row {
+      display: grid;
+      grid-template-columns: 54px 1fr 54px;
+      align-items: center;
+      gap: 14px;
+      margin: 14px 0;
+    }
+
+    .setting-label {
+      text-align: center;
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    button {
+      border: 2px solid #111;
+      border-radius: 10px;
+      background: #eee;
+      color: #111;
+      cursor: pointer;
+      font-size: 20px;
+      padding: 10px 14px;
+      transition: 0.12s;
+      user-select: none;
+    }
+
+    button:hover:not(:disabled) {
+      background: #ddd;
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .arrow {
+      width: 54px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      font-size: 26px;
+      font-weight: 800;
+      padding: 0;
+    }
+
+    .start-button {
+      display: block;
+      width: 140px;
+      margin: 22px auto 0;
+      font-size: 22px;
+      font-weight: 700;
+      background: #dfe8ff;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .status {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .message {
+      color: #c80000;
+      font-size: 24px;
+      font-weight: 800;
+      text-align: center;
+      flex: 1;
+    }
+
+    .retry {
+      min-width: 100px;
+      font-size: 18px;
+      padding: 8px 12px;
+    }
+
+    .grid {
+      display: grid;
+      justify-content: center;
+      gap: var(--gap);
+      margin: 0 auto;
+      width: max-content;
+      max-width: 100%;
+    }
+
+    .card {
+      width: var(--card-size);
+      height: var(--card-size);
+      border: 3px solid #111;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      font-size: var(--font-size);
+      font-weight: 800;
+      cursor: pointer;
+      user-select: none;
+      transition: 0.12s;
+    }
+
+    .card.hidden {
+      background: #b4b4b4;
+      color: transparent;
+    }
+
+    .card.hidden:hover {
+      transform: translateY(-2px);
+      background: #c7c7c7;
+    }
+
+    .card.revealed {
+      background: #ffffff;
+      color: #111;
+    }
+
+    .card.unopened-end {
+      background: #c8c8ff;
+      color: #111;
+    }
+
+    .card.clicked-end {
+      background: #ffffff;
+      color: #111;
+    }
+
+    .card.peak {
+      color: #ffffff;
+      border-width: 3px;
+    }
+
+    .card.global-max {
+      border-width: 6px;
+      background: #c8c8c8;
+    }
+
+    .card.guess {
+      outline: 5px solid #005dff;
+      outline-offset: -7px;
+    }
+
+    .card.disabled {
+      cursor: default;
+    }
+
+    .card.disabled:hover {
+      transform: none;
+    }
+
+    .legend {
+      margin-top: 14px;
+      padding: 10px 12px;
+      background: #f7f8fb;
+      border-radius: 10px;
+      color: #555;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .small-note {
+      text-align: center;
+      color: #555;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 640px) {
+      .setting-label { font-size: 22px; }
+      .status, .message { font-size: 18px; }
+      .screen { padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>Find the Max Card</h1>
+    <p class="description">
+      グリッド状のカードから最大値を探すゲームです。
+      Autoモードでは最大値を引いたら成功、Selfモードでは指定回数めくったあと、見えているカードの中から最大値だと思うカードを選びます。
+    </p>
+
+    <section id="screen" class="screen"></section>
+
+  </main>
+
+  <script>
+    const screen = document.getElementById("screen");
+
+    const MIN_SIDE = 3;
+    const MAX_SIDE = 12;
+    const MIN_TRIES = 3;
+    const MAX_TRIES = 12;
+    const MIN_LEVEL = 1;
+    const MAX_LEVEL = 3;
+
+    let gameState = "choose";
+    let side = 10;
+    let maxTries = 10;
+    let level = 1;
+    let modeType = "auto";
+
+    let cards = [];
+    let peakIndices = [];
+    let revealed = [];
+    let clicked = [];
+    let clickCount = 0;
+    let awaitingGuess = false;
+    let gameOver = false;
+    let message = "";
+    let maxValue = null;
+    let maxIndices = [];
+    let guessIndex = null;
+
+    function randInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function generatePeakedGrid(sideLength, numPeaks) {
+      const all = [];
+      for (let i = 0; i < sideLength; i++) {
+        for (let j = 0; j < sideLength; j++) {
+          all.push([i, j]);
+        }
+      }
+
+      const selected = shuffle(all).slice(0, numPeaks);
+
+      const peakInfo = selected.map(([pi, pj]) => ({
+        pi,
+        pj,
+        pv: randInt(50, 100),
+        k: 0.3 + Math.random() * 0.7
+      }));
+
+      const flat = [];
+
+      for (let i = 0; i < sideLength; i++) {
+        for (let j = 0; j < sideLength; j++) {
+          let best = 0;
+
+          for (const p of peakInfo) {
+            const d = Math.abs(p.pi - i) + Math.abs(p.pj - j);
+            const decayed = p.pv * Math.exp(-p.k * d);
+            if (decayed > best) best = decayed;
+          }
+
+          const value = Math.max(1, Math.min(100, Math.round(best)));
+          flat.push(value);
+        }
+      }
+
+      const peaks = selected.map(([pi, pj]) => pi * sideLength + pj);
+      return { flat, peaks };
+    }
+
+    function prepareGame() {
+      const total = side * side;
+      const generated = generatePeakedGrid(side, level);
+
+      cards = generated.flat;
+      peakIndices = generated.peaks;
+      revealed = Array(total).fill(false);
+      clicked = Array(total).fill(false);
+      clickCount = 0;
+      awaitingGuess = false;
+      gameOver = false;
+      message = "";
+      guessIndex = null;
+
+      maxValue = Math.max(...cards);
+      maxIndices = cards
+        .map((v, i) => v === maxValue ? i : -1)
+        .filter(i => i >= 0);
+
+      gameState = "play";
+      render();
+    }
+
+    function returnToChoose() {
+      gameState = "choose";
+      render();
+    }
+
+    function changeValue(key, delta) {
+      if (key === "side") {
+        side = Math.max(MIN_SIDE, Math.min(MAX_SIDE, side + delta));
+      } else if (key === "tries") {
+        maxTries = Math.max(MIN_TRIES, Math.min(MAX_TRIES, maxTries + delta));
+      } else if (key === "level") {
+        level = Math.max(MIN_LEVEL, Math.min(MAX_LEVEL, level + delta));
+      } else if (key === "mode") {
+        modeType = modeType === "auto" ? "self" : "auto";
+      }
+      render();
+    }
+
+    function revealAll() {
+      revealed = revealed.map(() => true);
+    }
+
+    function clickCard(index) {
+      if (gameOver) return;
+
+      if (modeType === "auto") {
+        if (revealed[index]) return;
+
+        revealed[index] = true;
+        clicked[index] = true;
+        clickCount += 1;
+
+        if (cards[index] === maxValue) {
+          guessIndex = index;
+          message = `Correct! You found max = ${maxValue}!`;
+          gameOver = true;
+          revealAll();
+        } else if (clickCount === maxTries) {
+          message = `Game Over! Max = ${maxValue}.`;
+          gameOver = true;
+          revealAll();
+        }
+      } else {
+        if (!awaitingGuess) {
+          if (revealed[index]) return;
+
+          revealed[index] = true;
+          clicked[index] = true;
+          clickCount += 1;
+
+          if (clickCount === maxTries) {
+            awaitingGuess = true;
+          }
+        } else {
+          if (!revealed[index]) return;
+
+          guessIndex = index;
+
+          if (maxIndices.includes(index)) {
+            message = `Correct! You guessed max = ${maxValue}!`;
+          } else {
+            message = `Wrong! Max was ${maxValue}.`;
+          }
+
+          gameOver = true;
+          revealAll();
+        }
+      }
+
+      render();
+    }
+
+    function renderChoose() {
+      screen.innerHTML = "";
+
+      const choose = document.createElement("div");
+      choose.className = "choose";
+
+      choose.appendChild(settingRow("Grid", `${side}×${side}`, () => changeValue("side", -1), () => changeValue("side", 1), side <= MIN_SIDE, side >= MAX_SIDE));
+      choose.appendChild(settingRow("Tries", `${maxTries}`, () => changeValue("tries", -1), () => changeValue("tries", 1), maxTries <= MIN_TRIES, maxTries >= MAX_TRIES));
+      choose.appendChild(settingRow("Level", `${level}`, () => changeValue("level", -1), () => changeValue("level", 1), level <= MIN_LEVEL, level >= MAX_LEVEL));
+      choose.appendChild(settingRow("Mode", `${modeType.charAt(0).toUpperCase() + modeType.slice(1)}`, () => changeValue("mode", -1), () => changeValue("mode", 1), false, false));
+
+      const start = document.createElement("button");
+      start.className = "start-button";
+      start.textContent = "Start";
+      start.addEventListener("click", prepareGame);
+      choose.appendChild(start);
+
+      const note = document.createElement("div");
+      note.className = "small-note";
+      note.textContent = "Grid: 3×3〜12×12 / Tries: 3〜12 / Level: ピーク数";
+      choose.appendChild(note);
+
+      screen.appendChild(choose);
+    }
+
+    function settingRow(label, value, leftHandler, rightHandler, leftDisabled, rightDisabled) {
+      const row = document.createElement("div");
+      row.className = "setting-row";
+
+      const left = document.createElement("button");
+      left.className = "arrow";
+      left.textContent = "<";
+      left.disabled = leftDisabled;
+      left.addEventListener("click", leftHandler);
+
+      const center = document.createElement("div");
+      center.className = "setting-label";
+      center.textContent = `${label}: ${value}`;
+
+      const right = document.createElement("button");
+      right.className = "arrow";
+      right.textContent = ">";
+      right.disabled = rightDisabled;
+      right.addEventListener("click", rightHandler);
+
+      row.append(left, center, right);
+      return row;
+    }
+
+    function renderPlay() {
+      screen.innerHTML = "";
+
+      const topbar = document.createElement("div");
+      topbar.className = "topbar";
+
+      const status = document.createElement("div");
+      status.className = "status";
+
+      if (gameOver) {
+        status.textContent = "";
+      } else if (modeType === "auto") {
+        status.textContent = `Clicks left: ${Math.max(0, maxTries - clickCount)}`;
+      } else if (!awaitingGuess) {
+        status.textContent = `Clicks left: ${Math.max(0, maxTries - clickCount)}`;
+      } else {
+        status.textContent = "Select the max from revealed cards";
+      }
+
+      const msg = document.createElement("div");
+      msg.className = "message";
+      msg.textContent = gameOver ? message : "";
+
+      const retry = document.createElement("button");
+      retry.className = "retry";
+      retry.textContent = "Retry";
+      retry.style.visibility = gameOver ? "visible" : "hidden";
+      retry.addEventListener("click", returnToChoose);
+
+      topbar.append(status, msg, retry);
+      screen.appendChild(topbar);
+
+      const totalAvailableWidth = Math.min(screen.clientWidth - 40, 800);
+      const gap = side <= 6 ? 20 : side <= 9 ? 12 : 8;
+      const cardSize = Math.max(36, Math.min(100, Math.floor((totalAvailableWidth - gap * (side - 1)) / side)));
+      const fontSize = Math.max(14, Math.floor(cardSize * 0.36));
+
+      const grid = document.createElement("div");
+      grid.className = "grid";
+      grid.style.setProperty("--card-size", `${cardSize}px`);
+      grid.style.setProperty("--font-size", `${fontSize}px`);
+      grid.style.setProperty("--gap", `${gap}px`);
+      grid.style.gridTemplateColumns = `repeat(${side}, ${cardSize}px)`;
+
+      cards.forEach((value, index) => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        if (!gameOver) {
+          if (revealed[index]) {
+            card.classList.add("revealed");
+            card.textContent = value;
+          } else {
+            card.classList.add("hidden");
+            card.textContent = value;
+          }
+        } else {
+          card.textContent = value;
+
+          if (peakIndices.includes(index)) {
+            card.classList.add("peak");
+            const red = Math.round(255 * (value / 100));
+            card.style.background = `rgb(${red}, 0, 0)`;
+          } else if (maxIndices.includes(index)) {
+            card.classList.add("global-max");
+          } else if (clicked[index]) {
+            card.classList.add("clicked-end");
+          } else {
+            card.classList.add("unopened-end");
+          }
+
+          if (modeType === "self" && guessIndex === index) {
+            card.classList.add("guess");
+          }
+
+          if (modeType === "auto" && guessIndex === index) {
+            card.classList.add("guess");
+          }
+
+          card.classList.add("disabled");
+        }
+
+        card.addEventListener("click", () => clickCard(index));
+        grid.appendChild(card);
+      });
+
+      screen.appendChild(grid);
+    }
+
+    function render() {
+      if (gameState === "choose") {
+        renderChoose();
+      } else {
+        renderPlay();
+      }
+    }
+
+    window.addEventListener("resize", () => {
+      if (gameState === "play") renderPlay();
+    });
+
+    render();
+  </script>
+</body>
+</html>
