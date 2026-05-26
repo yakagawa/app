@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ピラミッド棒取りゲーム</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f4f6fb;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px;
+      color: #222;
+    }
+
+    .app {
+      width: min(720px, 100%);
+      background: #ffffff;
+      border-radius: 18px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.13);
+      padding: 18px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      text-align: center;
+      font-size: 26px;
+    }
+
+    .description {
+      margin: 0 auto 14px;
+      max-width: 620px;
+      line-height: 1.7;
+      font-size: 14px;
+      color: #444;
+    }
+
+    .info {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+      padding: 12px;
+      background: #f0f3f8;
+      border-radius: 12px;
+      border: 1px solid #dce2ee;
+    }
+
+    .status {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .player1 {
+      color: #e95d5d;
+    }
+
+    .player2 {
+      color: #5d6ee9;
+    }
+
+    .board {
+      position: relative;
+      width: 100%;
+      min-height: 480px;
+      background: #fffdf7;
+      border: 2px solid #222;
+      border-radius: 14px;
+      overflow: auto;
+      padding: 26px 16px 36px;
+    }
+
+    .row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 24px;
+      min-height: 54px;
+      margin: 6px 0;
+      position: relative;
+    }
+
+    .stick-wrap {
+      position: relative;
+      width: 18px;
+      height: 44px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .stick {
+      width: 10px;
+      height: 40px;
+      background: #111;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: 0.12s;
+    }
+
+    .stick:hover {
+      transform: translateY(-2px);
+      background: #333;
+    }
+
+    .stick.selected {
+      background: #00b050;
+      box-shadow: 0 0 0 4px rgba(0, 176, 80, 0.18);
+    }
+
+    .stick.removed {
+      background: #dddddd;
+      cursor: default;
+    }
+
+    .remove-line {
+      position: absolute;
+      height: 4px;
+      border-radius: 999px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .remove-line.p1 {
+      background: #ff6464;
+    }
+
+    .remove-line.p2 {
+      background: #6464ff;
+    }
+
+    .row-controls {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: 12px;
+      min-width: 82px;
+    }
+
+    .row-controls button {
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+
+    .row-count {
+      min-width: 22px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 18px;
+      background: #d8dde8;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+
+    button:hover {
+      background: #c5ccdb;
+      transform: translateY(-1px);
+    }
+
+    button.primary {
+      background: #4f8cff;
+      color: white;
+      font-weight: 700;
+    }
+
+    button.primary:hover {
+      background: #3578f6;
+    }
+
+    button.danger {
+      background: #ffd7d7;
+    }
+
+    button.danger:hover {
+      background: #ffbebe;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .rule {
+      margin-top: 12px;
+      font-size: 13px;
+      line-height: 1.7;
+      color: #555;
+      background: #f7f8fb;
+      padding: 10px 12px;
+      border-radius: 10px;
+    }
+
+    @media (max-width: 560px) {
+      .row {
+        gap: 14px;
+      }
+
+      .board {
+        padding-left: 8px;
+        padding-right: 8px;
+      }
+
+      button {
+        width: 100%;
+      }
+
+      .row-controls button {
+        width: 26px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>ピラミッド棒取りゲーム</h1>
+    <p class="description">
+      同じ段にある連続した棒を選んで取り除きます。最後の棒を取ったプレイヤーが負けです。
+      初期画面では段数と各段の棒の本数を変更できます。
+    </p>
+
+    <div class="info">
+      <div id="status" class="status">初期設定</div>
+      <div>段数: <strong id="rowCountLabel">4</strong></div>
+    </div>
+
+    <div id="board" class="board"></div>
+
+    <div id="controls" class="controls"></div>
+
+    <p class="rule">
+      ルール：1回の操作で取り除けるのは、同じ段の連続した棒だけです。
+      クリックした範囲が自動的に選択されます。選択後に「取り除く」を押してください。
+    </p>
+  </main>
+
+  <script>
+    const board = document.getElementById("board");
+    const controls = document.getElementById("controls");
+    const statusEl = document.getElementById("status");
+    const rowCountLabel = document.getElementById("rowCountLabel");
+
+    const MAX_ROWS = 36;
+    const MAX_STICKS_PER_ROW = 10;
+
+    let mode = "init";
+    let numRows = 4;
+    let stickCounts = [1, 2, 3, 4];
+    let currentPlayer = 1;
+    let gameOver = false;
+    let selected = [];
+    let nextRemovedGroup = 0;
+
+    let sticks = [];
+
+    function initializeSticks() {
+      sticks = stickCounts.map(count =>
+        Array.from({ length: count }, () => ({
+          visible: true,
+          removed: false,
+          removedBy: null,
+          removedGroup: null
+        }))
+      );
+      selected = [];
+      nextRemovedGroup = 0;
+    }
+
+    function resetStickCountsByRows() {
+      stickCounts = Array.from({ length: numRows }, (_, i) => i + 1);
+      initializeSticks();
+    }
+
+    function isSelected(row, col) {
+      return selected.some(([r, c]) => r === row && c === col);
+    }
+
+    function selectStick(row, col) {
+      if (mode !== "play" || gameOver || !sticks[row][col].visible) return;
+
+      if (selected.length === 0) {
+        selected = [[row, col]];
+      } else if (selected.every(([r]) => r === row)) {
+        const cols = selected.map(([, c]) => c).concat(col);
+        const minCol = Math.min(...cols);
+        const maxCol = Math.max(...cols);
+
+        selected = [];
+        for (let c = minCol; c <= maxCol; c++) {
+          if (sticks[row][c] && sticks[row][c].visible) {
+            selected.push([row, c]);
+          }
+        }
+      } else {
+        selected = [[row, col]];
+      }
+
+      render();
+    }
+
+    function removeSelectedSticks() {
+      if (selected.length === 0 || gameOver) return;
+
+      const row = selected[0][0];
+      if (!selected.every(([r]) => r === row)) return;
+
+      const cols = selected.map(([, c]) => c).sort((a, b) => a - b);
+      for (let i = 1; i < cols.length; i++) {
+        if (cols[i] !== cols[i - 1] + 1) return;
+      }
+
+      nextRemovedGroup += 1;
+      for (const col of cols) {
+        sticks[row][col].visible = false;
+        sticks[row][col].removed = true;
+        sticks[row][col].removedBy = currentPlayer;
+        sticks[row][col].removedGroup = nextRemovedGroup;
+      }
+
+      selected = [];
+
+      if (allSticksRemoved()) {
+        gameOver = true;
+      } else {
+        currentPlayer = 3 - currentPlayer;
+      }
+
+      render();
+    }
+
+    function allSticksRemoved() {
+      return sticks.every(row => row.every(stick => !stick.visible));
+    }
+
+    function setRows(delta) {
+      numRows = Math.max(1, Math.min(MAX_ROWS, numRows + delta));
+      resetStickCountsByRows();
+      render();
+    }
+
+    function changeRowStickCount(row, delta) {
+      stickCounts[row] = Math.max(1, Math.min(MAX_STICKS_PER_ROW, stickCounts[row] + delta));
+      initializeSticks();
+      render();
+    }
+
+    function startGame() {
+      mode = "play";
+      currentPlayer = 1;
+      gameOver = false;
+      initializeSticks();
+      render();
+    }
+
+    function retry() {
+      mode = "init";
+      gameOver = false;
+      initializeSticks();
+      render();
+    }
+
+    function renderStatus() {
+      rowCountLabel.textContent = numRows;
+
+      statusEl.classList.remove("player1", "player2");
+
+      if (mode === "init") {
+        statusEl.textContent = "初期設定";
+      } else if (gameOver) {
+        statusEl.textContent = `Player ${currentPlayer} の負け！`;
+        statusEl.classList.add(currentPlayer === 1 ? "player1" : "player2");
+      } else {
+        statusEl.textContent = `Player ${currentPlayer} の番`;
+        statusEl.classList.add(currentPlayer === 1 ? "player1" : "player2");
+      }
+    }
+
+    function renderBoard() {
+      board.innerHTML = "";
+
+      sticks.forEach((row, rowIndex) => {
+        const rowEl = document.createElement("div");
+        rowEl.className = "row";
+
+        row.forEach((stick, colIndex) => {
+          const wrap = document.createElement("div");
+          wrap.className = "stick-wrap";
+          wrap.dataset.row = rowIndex;
+          wrap.dataset.col = colIndex;
+
+          const stickEl = document.createElement("div");
+          stickEl.className = "stick";
+
+          if (isSelected(rowIndex, colIndex)) {
+            stickEl.classList.add("selected");
+          }
+
+          if (stick.removed) {
+            stickEl.classList.add("removed");
+          }
+
+          if (stick.visible) {
+            stickEl.addEventListener("click", () => selectStick(rowIndex, colIndex));
+          }
+
+          wrap.appendChild(stickEl);
+          rowEl.appendChild(wrap);
+        });
+
+        if (mode === "init") {
+          const rowControls = document.createElement("div");
+          rowControls.className = "row-controls";
+
+          const minus = document.createElement("button");
+          minus.textContent = "-";
+          minus.disabled = stickCounts[rowIndex] <= 1;
+          minus.addEventListener("click", () => changeRowStickCount(rowIndex, -1));
+
+          const count = document.createElement("span");
+          count.className = "row-count";
+          count.textContent = stickCounts[rowIndex];
+
+          const plus = document.createElement("button");
+          plus.textContent = "+";
+          plus.disabled = stickCounts[rowIndex] >= MAX_STICKS_PER_ROW;
+          plus.addEventListener("click", () => changeRowStickCount(rowIndex, 1));
+
+          rowControls.append(minus, count, plus);
+          rowEl.appendChild(rowControls);
+        }
+
+        board.appendChild(rowEl);
+      });
+
+      drawRemovedLines();
+    }
+
+    function drawRemovedLines() {
+      const rows = board.querySelectorAll(".row");
+
+      sticks.forEach((row, rowIndex) => {
+        let col = 0;
+        const rowEl = rows[rowIndex];
+
+        while (col < row.length) {
+          const stick = row[col];
+
+          if (stick.removed) {
+            const group = stick.removedGroup;
+            const player = stick.removedBy;
+            const startCol = col;
+
+            while (
+              col < row.length &&
+              row[col].removed &&
+              row[col].removedGroup === group
+            ) {
+              col += 1;
+            }
+
+            const endCol = col - 1;
+            const startEl = rowEl.querySelector(`[data-col="${startCol}"]`);
+            const endEl = rowEl.querySelector(`[data-col="${endCol}"]`);
+
+            if (startEl && endEl) {
+              const line = document.createElement("div");
+              line.className = `remove-line ${player === 1 ? "p1" : "p2"}`;
+
+              const rowRect = rowEl.getBoundingClientRect();
+              const startRect = startEl.getBoundingClientRect();
+              const endRect = endEl.getBoundingClientRect();
+
+              const left = startRect.left - rowRect.left - 5;
+              const right = endRect.right - rowRect.left + 5;
+
+              line.style.left = `${left}px`;
+              line.style.width = `${right - left}px`;
+
+              rowEl.appendChild(line);
+            }
+          } else {
+            col += 1;
+          }
+        }
+      });
+    }
+
+    function renderControls() {
+      controls.innerHTML = "";
+
+      if (mode === "init") {
+        const minusRow = document.createElement("button");
+        minusRow.textContent = "-Row";
+        minusRow.disabled = numRows <= 1;
+        minusRow.addEventListener("click", () => setRows(-1));
+
+        const plusRow = document.createElement("button");
+        plusRow.textContent = "+Row";
+        plusRow.disabled = numRows >= MAX_ROWS;
+        plusRow.addEventListener("click", () => setRows(1));
+
+        const start = document.createElement("button");
+        start.className = "primary";
+        start.textContent = "Start";
+        start.addEventListener("click", startGame);
+
+        controls.append(minusRow, plusRow, start);
+      } else {
+        const retryBtn = document.createElement("button");
+        retryBtn.className = "danger";
+        retryBtn.textContent = "Retry";
+        retryBtn.addEventListener("click", retry);
+
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "primary";
+        removeBtn.textContent = "Remove";
+        removeBtn.disabled = selected.length === 0 || gameOver;
+        removeBtn.addEventListener("click", removeSelectedSticks);
+
+        controls.append(retryBtn, removeBtn);
+      }
+    }
+
+    function render() {
+      renderStatus();
+      renderBoard();
+      renderControls();
+    }
+
+    window.addEventListener("resize", () => {
+      render();
+    });
+
+    initializeSticks();
+    render();
+  </script>
+</body>
+</html>
