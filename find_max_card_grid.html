@@ -49,6 +49,7 @@
       background: white;
       padding: 16px;
       overflow: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     .choose {
@@ -142,11 +143,11 @@
 
     .grid {
       display: grid;
-      justify-content: center;
+      justify-content: start;
       gap: var(--gap);
       margin: 0 auto;
       width: max-content;
-      max-width: 100%;
+      max-width: none;
     }
 
     .card {
@@ -229,9 +230,12 @@
     }
 
     @media (max-width: 640px) {
+      body { padding: 10px; }
+      .app { padding: 12px; }
       .setting-label { font-size: 22px; }
       .status, .message { font-size: 18px; }
       .screen { padding: 10px; }
+      .grid { margin-left: 0; margin-right: 0; }
     }
   </style>
 </head>
@@ -370,6 +374,24 @@
       revealed = revealed.map(() => true);
     }
 
+    function renderPreservingScroll() {
+      const pageX = window.scrollX;
+      const pageY = window.scrollY;
+      const screenLeft = screen.scrollLeft;
+      const screenTop = screen.scrollTop;
+
+      render();
+
+      const restore = () => {
+        screen.scrollLeft = screenLeft;
+        screen.scrollTop = screenTop;
+        window.scrollTo(pageX, pageY);
+      };
+
+      requestAnimationFrame(restore);
+      setTimeout(restore, 0);
+    }
+
     function clickCard(index) {
       if (gameOver) return;
 
@@ -417,7 +439,7 @@
         }
       }
 
-      render();
+      renderPreservingScroll();
     }
 
     function renderChoose() {
