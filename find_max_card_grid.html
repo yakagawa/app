@@ -41,6 +41,24 @@
       font-size: 14px;
     }
 
+    .game-header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      background: #f7f8fb;
+      border: 2px solid #222;
+      border-radius: 12px;
+    }
+
+    .game-header.hidden {
+      display: none;
+    }
+
     .screen {
       width: 100%;
       min-height: 360px;
@@ -247,12 +265,14 @@
       Autoモードでは最大値を引いたら成功、Selfモードでは指定回数めくったあと、見えているカードの中から最大値だと思うカードを選びます。
     </p>
 
+    <div id="gameHeader" class="game-header hidden"></div>
     <section id="screen" class="screen"></section>
 
   </main>
 
   <script>
     const screen = document.getElementById("screen");
+    const gameHeader = document.getElementById("gameHeader");
 
     const MIN_SIDE = 3;
     const MAX_SIDE = 12;
@@ -443,6 +463,8 @@
     }
 
     function renderChoose() {
+      gameHeader.innerHTML = "";
+      gameHeader.classList.add("hidden");
       screen.innerHTML = "";
 
       const choose = document.createElement("div");
@@ -491,11 +513,9 @@
       return row;
     }
 
-    function renderPlay() {
-      screen.innerHTML = "";
-
-      const topbar = document.createElement("div");
-      topbar.className = "topbar";
+    function renderGameHeader() {
+      gameHeader.innerHTML = "";
+      gameHeader.classList.remove("hidden");
 
       const status = document.createElement("div");
       status.className = "status";
@@ -520,8 +540,12 @@
       retry.style.visibility = gameOver ? "visible" : "hidden";
       retry.addEventListener("click", returnToChoose);
 
-      topbar.append(status, msg, retry);
-      screen.appendChild(topbar);
+      gameHeader.append(status, msg, retry);
+    }
+
+    function renderPlay() {
+      renderGameHeader();
+      screen.innerHTML = "";
 
       const totalAvailableWidth = Math.min(screen.clientWidth - 40, 800);
       const gap = side <= 6 ? 20 : side <= 9 ? 12 : 8;
