@@ -151,6 +151,10 @@
       color: #4f63d8;
     }
 
+    .number-display.third-color {
+      color: #1f9d55;
+    }
+
     .number-display.clickable {
       cursor: pointer;
       transition: 0.12s;
@@ -196,6 +200,12 @@
       border: 2px solid #4f63d8;
     }
 
+    .turn-label.third {
+      color: #1f9d55;
+      background: #e4f8ed;
+      border: 2px solid #1f9d55;
+    }
+
     .main-button {
       position: absolute;
       left: 50%;
@@ -227,6 +237,10 @@
 
     .main-button.second-active {
       border-color: #4f63d8;
+    }
+
+    .main-button.third-active {
+      border-color: #1f9d55;
     }
 
     .button-label {
@@ -262,6 +276,10 @@
       background: rgba(79, 99, 216, 0.45);
     }
 
+    .gauge.third {
+      background: rgba(31, 157, 85, 0.45);
+    }
+
     .top-numbers {
       position: absolute;
       left: 0;
@@ -294,6 +312,11 @@
       font-weight: 800;
     }
 
+    .top-number.third-played {
+      color: #1f9d55;
+      font-weight: 800;
+    }
+
     .top-number.current-first {
       color: #d84f4f;
       font-weight: 900;
@@ -304,6 +327,40 @@
       color: #4f63d8;
       font-weight: 900;
       text-decoration: underline;
+    }
+
+    .top-number.current-third {
+      color: #1f9d55;
+      font-weight: 900;
+      text-decoration: underline;
+    }
+
+    .player-count-wrap {
+      position: absolute;
+      left: 50%;
+      top: 304px;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .player-choice {
+      border: 2px solid #111;
+      background: rgb(225, 225, 225);
+      border-radius: 999px;
+      padding: 8px 18px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .player-choice.active {
+      background: #111;
+      color: white;
     }
 
     .players-info {
@@ -335,6 +392,12 @@
       color: #4f63d8;
       background: #e7eaff;
       border-color: #4f63d8;
+    }
+
+    .badge.third {
+      color: #1f9d55;
+      background: #e4f8ed;
+      border-color: #1f9d55;
     }
 
     .rule {
@@ -388,7 +451,7 @@
     <p class="description">
       開始数を選び、中央の数字をクリックして1ずつ減らします。
       1ターンに最大3回までクリックできます。「Change Turn」で交代します。
-      1をクリックしたプレイヤーが負けです。
+      対戦人数は2人または3人から選べます。1をクリックしたプレイヤーが負けです。
     </p>
 
     <section id="screen" class="screen"></section>
@@ -404,6 +467,7 @@
     let gameState = "menu";
     let startingNumber = 31;
     let startingPlayer = 1;
+    let playerCount = 2;
 
     let currentNumber = null;
     let tapsRemaining = 3;
@@ -414,15 +478,32 @@
     let numberOwners = {};
 
     function playerClass(player) {
-      return player === 1 ? "first" : "second";
+      if (player === 1) return "first";
+      if (player === 2) return "second";
+      return "third";
     }
 
     function playerColorClass(player) {
-      return player === 1 ? "first-color" : "second-color";
+      if (player === 1) return "first-color";
+      if (player === 2) return "second-color";
+      return "third-color";
     }
 
     function playerName(player) {
-      return player === 1 ? "先攻" : "後攻";
+      if (playerCount === 2) {
+        return player === 1 ? "先攻" : "後攻";
+      }
+      return `Player ${player}`;
+    }
+
+    function playerLightColor(player) {
+      if (player === 1) return "#ffe5e5";
+      if (player === 2) return "#e7eaff";
+      return "#e4f8ed";
+    }
+
+    function nextPlayer(player) {
+      return (player % playerCount) + 1;
     }
 
     function clampStartValue(value) {
@@ -433,6 +514,12 @@
 
     function setStartingNumber(value) {
       startingNumber = clampStartValue(value);
+      render();
+    }
+
+    function setPlayerCount(value) {
+      playerCount = value;
+      startingPlayer = 1;
       render();
     }
 
@@ -487,7 +574,7 @@
 
         if (tapsRemaining === 0) {
           tapsRemaining = 3;
-          currentPlayer = currentPlayer === 1 ? 2 : 1;
+          currentPlayer = nextPlayer(currentPlayer);
           startFlash();
         }
       } else {
@@ -503,7 +590,7 @@
 
       if (tapsRemaining < 3 || currentNumber === 1) {
         tapsRemaining = 3;
-        currentPlayer = currentPlayer === 1 ? 2 : 1;
+        currentPlayer = nextPlayer(currentPlayer);
         startFlash();
         render();
       }
@@ -572,19 +659,43 @@
       range.addEventListener("input", () => setStartingNumber(range.value));
       rangeWrap.appendChild(range);
 
+      const playerCountWrap = document.createElement("div");
+      playerCountWrap.className = "player-count-wrap";
+
+      const playerCountLabel = document.createElement("span");
+      playerCountLabel.textContent = "対戦人数：";
+
+      const twoPlayers = document.createElement("button");
+      twoPlayers.className = `player-choice ${playerCount === 2 ? "active" : ""}`;
+      twoPlayers.textContent = "2人";
+      twoPlayers.addEventListener("click", () => setPlayerCount(2));
+
+      const threePlayers = document.createElement("button");
+      threePlayers.className = `player-choice ${playerCount === 3 ? "active" : ""}`;
+      threePlayers.textContent = "3人";
+      threePlayers.addEventListener("click", () => setPlayerCount(3));
+
+      playerCountWrap.append(playerCountLabel, twoPlayers, threePlayers);
+
       const playersInfo = document.createElement("div");
       playersInfo.className = "players-info";
-      playersInfo.innerHTML = `
-        <span class="badge first">先攻：赤</span>
-        <span class="badge second">後攻：青</span>
-      `;
+      playersInfo.innerHTML = playerCount === 2
+        ? `
+          <span class="badge first">先攻：赤</span>
+          <span class="badge second">後攻：青</span>
+        `
+        : `
+          <span class="badge first">Player 1：赤</span>
+          <span class="badge second">Player 2：青</span>
+          <span class="badge third">Player 3：緑</span>
+        `;
 
       const start = document.createElement("button");
       start.className = "main-button";
       start.innerHTML = `<span class="button-label">Start</span>`;
       start.addEventListener("click", startGame);
 
-      screenEl.append(title, setting, rangeWrap, playersInfo, start);
+      screenEl.append(title, setting, rangeWrap, playerCountWrap, playersInfo, start);
     }
 
     function renderTopNumbers() {
@@ -597,16 +708,15 @@
         item.className = "top-number";
         item.textContent = n;
 
-        if (numberOwners[n] === 1) {
-          item.classList.add("first-played");
-        } else if (numberOwners[n] === 2) {
-          item.classList.add("second-played");
+        const owner = numberOwners[n];
+        if (owner) {
+          item.classList.add(`${playerClass(owner)}-played`);
         } else if (n > currentNumber) {
           item.classList.add("past");
         }
 
         if (n === currentNumber && !gameOver) {
-          item.classList.add(currentPlayer === 1 ? "current-first" : "current-second");
+          item.classList.add(`current-${playerClass(currentPlayer)}`);
         }
 
         list.appendChild(item);
@@ -635,11 +745,11 @@
         const canChange = tapsRemaining < 3 || currentNumber === 1;
 
         const button = document.createElement("button");
-        button.className = `main-button ${currentPlayer === 1 ? "first-active" : "second-active"}`;
+        button.className = `main-button ${playerClass(currentPlayer)}-active`;
         button.disabled = !canChange;
 
         if (flashTimer > 0) {
-          button.style.background = currentPlayer === 1 ? "#ffe5e5" : "#e7eaff";
+          button.style.background = playerLightColor(currentPlayer);
         }
 
         const gauge = document.createElement("div");
