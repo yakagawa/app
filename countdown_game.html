@@ -116,21 +116,6 @@
       box-shadow: 0 0 0 4px rgba(50, 50, 200, 0.15);
     }
 
-    .range-wrap {
-      position: absolute;
-      left: 50%;
-      top: 220px;
-      transform: translateX(-50%);
-      width: min(420px, 80%);
-      text-align: center;
-      font-size: 14px;
-      color: #444;
-    }
-
-    .range-wrap input {
-      width: 100%;
-      margin-top: 8px;
-    }
 
     .number-display {
       position: absolute;
@@ -153,6 +138,10 @@
 
     .number-display.third-color {
       color: #1f9d55;
+    }
+
+    .number-display.fourth-color {
+      color: #9b59b6;
     }
 
     .number-display.clickable {
@@ -206,6 +195,12 @@
       border: 2px solid #1f9d55;
     }
 
+    .turn-label.fourth {
+      color: #9b59b6;
+      background: #f4e7fb;
+      border: 2px solid #9b59b6;
+    }
+
     .main-button {
       position: absolute;
       left: 50%;
@@ -241,6 +236,10 @@
 
     .main-button.third-active {
       border-color: #1f9d55;
+    }
+
+    .main-button.fourth-active {
+      border-color: #9b59b6;
     }
 
     .button-label {
@@ -280,6 +279,10 @@
       background: rgba(31, 157, 85, 0.45);
     }
 
+    .gauge.fourth {
+      background: rgba(155, 89, 182, 0.45);
+    }
+
     .top-numbers {
       position: absolute;
       left: 0;
@@ -317,6 +320,11 @@
       font-weight: 800;
     }
 
+    .top-number.fourth-played {
+      color: #9b59b6;
+      font-weight: 800;
+    }
+
     .top-number.current-first {
       color: #d84f4f;
       font-weight: 900;
@@ -335,10 +343,16 @@
       text-decoration: underline;
     }
 
+    .top-number.current-fourth {
+      color: #9b59b6;
+      font-weight: 900;
+      text-decoration: underline;
+    }
+
     .player-count-wrap {
       position: absolute;
       left: 50%;
-      top: 304px;
+      top: 228px;
       transform: translateX(-50%);
       display: flex;
       align-items: center;
@@ -400,6 +414,12 @@
       border-color: #1f9d55;
     }
 
+    .badge.fourth {
+      color: #9b59b6;
+      background: #f4e7fb;
+      border-color: #9b59b6;
+    }
+
     .rule {
       margin-top: 12px;
       padding: 10px 12px;
@@ -451,7 +471,7 @@
     <p class="description">
       開始数を選び、中央の数字をクリックして1ずつ減らします。
       1ターンに最大3回までクリックできます。「Change Turn」で交代します。
-      対戦人数は2人または3人から選べます。1をクリックしたプレイヤーが負けです。
+      対戦人数は2人・3人・4人から選べます。1をクリックしたプレイヤーが負けです。
     </p>
 
     <section id="screen" class="screen"></section>
@@ -480,13 +500,15 @@
     function playerClass(player) {
       if (player === 1) return "first";
       if (player === 2) return "second";
-      return "third";
+      if (player === 3) return "third";
+      return "fourth";
     }
 
     function playerColorClass(player) {
       if (player === 1) return "first-color";
       if (player === 2) return "second-color";
-      return "third-color";
+      if (player === 3) return "third-color";
+      return "fourth-color";
     }
 
     function playerName(player) {
@@ -499,7 +521,15 @@
     function playerLightColor(player) {
       if (player === 1) return "#ffe5e5";
       if (player === 2) return "#e7eaff";
-      return "#e4f8ed";
+      if (player === 3) return "#e4f8ed";
+      return "#f4e7fb";
+    }
+
+    function playerTextColor(player) {
+      if (player === 1) return "#d84f4f";
+      if (player === 2) return "#4f63d8";
+      if (player === 3) return "#1f9d55";
+      return "#9b59b6";
     }
 
     function nextPlayer(player) {
@@ -645,25 +675,10 @@
 
       setting.append(minus, box, plus);
 
-      const rangeWrap = document.createElement("div");
-      rangeWrap.className = "range-wrap";
-      rangeWrap.innerHTML = `
-        <div>開始数を変更：${startingNumber}</div>
-      `;
-
-      const range = document.createElement("input");
-      range.type = "range";
-      range.min = String(MIN_START);
-      range.max = String(MAX_START);
-      range.value = String(startingNumber);
-      range.addEventListener("input", () => setStartingNumber(range.value));
-      rangeWrap.appendChild(range);
 
       const playerCountWrap = document.createElement("div");
       playerCountWrap.className = "player-count-wrap";
 
-      const playerCountLabel = document.createElement("span");
-      playerCountLabel.textContent = "対戦人数：";
 
       const twoPlayers = document.createElement("button");
       twoPlayers.className = `player-choice ${playerCount === 2 ? "active" : ""}`;
@@ -675,27 +690,41 @@
       threePlayers.textContent = "3人";
       threePlayers.addEventListener("click", () => setPlayerCount(3));
 
-      playerCountWrap.append(playerCountLabel, twoPlayers, threePlayers);
+      const fourPlayers = document.createElement("button");
+      fourPlayers.className = `player-choice ${playerCount === 4 ? "active" : ""}`;
+      fourPlayers.textContent = "4人";
+      fourPlayers.addEventListener("click", () => setPlayerCount(4));
+
+      playerCountWrap.append(twoPlayers, threePlayers, fourPlayers);
 
       const playersInfo = document.createElement("div");
       playersInfo.className = "players-info";
-      playersInfo.innerHTML = playerCount === 2
-        ? `
+      if (playerCount === 2) {
+        playersInfo.innerHTML = `
           <span class="badge first">先攻：赤</span>
           <span class="badge second">後攻：青</span>
-        `
-        : `
+        `;
+      } else if (playerCount === 3) {
+        playersInfo.innerHTML = `
           <span class="badge first">Player 1：赤</span>
           <span class="badge second">Player 2：青</span>
           <span class="badge third">Player 3：緑</span>
         `;
+      } else {
+        playersInfo.innerHTML = `
+          <span class="badge first">Player 1：赤</span>
+          <span class="badge second">Player 2：青</span>
+          <span class="badge third">Player 3：緑</span>
+          <span class="badge fourth">Player 4：紫</span>
+        `;
+      }
 
       const start = document.createElement("button");
       start.className = "main-button";
       start.innerHTML = `<span class="button-label">Start</span>`;
       start.addEventListener("click", startGame);
 
-      screenEl.append(title, setting, rangeWrap, playerCountWrap, playersInfo, start);
+      screenEl.append(title, setting, playerCountWrap, playersInfo, start);
     }
 
     function renderTopNumbers() {
@@ -758,7 +787,14 @@
 
         const label = document.createElement("span");
         label.className = "button-label";
-        if (flashTimer > 0) label.classList.add("flash");
+        if (flashTimer > 0) {
+          label.classList.add("flash");
+          label.style.color = playerTextColor(currentPlayer);
+        } else if (canChange) {
+          label.style.color = playerTextColor(currentPlayer);
+        } else {
+          label.style.color = "#555";
+        }
         label.textContent = "Change Turn";
 
         button.append(gauge, label);
